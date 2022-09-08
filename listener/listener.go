@@ -30,12 +30,16 @@ var (
 	mixedListener     *mixed.Listener
 	mixedUDPLister    *socks.UDPListener
 
+	otherInbounds map[string]C.OtherInbound
+
 	// lock for recreate function
 	socksMux  sync.Mutex
 	httpMux   sync.Mutex
 	redirMux  sync.Mutex
 	tproxyMux sync.Mutex
 	mixedMux  sync.Mutex
+
+	otherInboundsMux sync.Mutex
 )
 
 type Ports struct {
@@ -299,6 +303,24 @@ func ReCreateMixed(port int, tcpIn chan<- C.ConnContext, udpIn chan<- *inbound.P
 	}
 
 	log.Infoln("Mixed(http+socks) proxy listening at: %s", mixedListener.Address())
+}
+
+func SetOtherInbounds(inbounds map[string]C.OtherInbound) {
+	otherInboundsMux.Lock()
+	defer otherInboundsMux.Unlock()
+	otherInbounds = inbounds
+}
+
+func AddOtherInbounds(inbound C.OtherInbound) error {
+	otherInboundsMux.Lock()
+	defer otherInboundsMux.Unlock()
+	if _, ok := otherInbounds[inbound.Name()]; ok {
+		inbound.Close()
+		return fmt.Errorf("inbound tag %s already exists", inbound.Name())
+	}
+	otherInbounds[inbound.Name()] = inbound
+
+	return nil
 }
 
 // GetPorts return the ports of proxy servers

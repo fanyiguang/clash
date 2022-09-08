@@ -119,6 +119,19 @@ type Proxy interface {
 	DialUDP(metadata *Metadata) (PacketConn, error)
 }
 
+type OtherInbound interface {
+	Name() string
+	Type() OtherInboundType
+	Close()
+}
+
+type OtherInboundType string
+
+const (
+	OtherInboundTypeHTTP  OtherInboundType = "http"
+	OtherInboundTypeSocks OtherInboundType = "socks5"
+)
+
 // AdapterType is enum of adapter type
 type AdapterType int
 

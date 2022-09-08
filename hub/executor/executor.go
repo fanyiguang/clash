@@ -75,6 +75,12 @@ func ApplyConfig(cfg *config.Config, force bool) {
 	updateGeneral(cfg.General, force)
 	updateDNS(cfg.DNS)
 	updateExperimental(cfg)
+
+	SetOtherInbounds(cfg.Inbounds)
+}
+
+func SetOtherInbounds(inbounds map[string]C.OtherInbound) {
+	P.SetOtherInbounds(inbounds)
 }
 
 func GetGeneral() *config.General {

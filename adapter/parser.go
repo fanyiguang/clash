@@ -3,10 +3,44 @@ package adapter
 import (
 	"fmt"
 
+	"github.com/Dreamacro/clash/adapter/otherinbound"
+	"github.com/Dreamacro/clash/tunnel"
+
 	"github.com/Dreamacro/clash/adapter/outbound"
 	"github.com/Dreamacro/clash/common/structure"
 	C "github.com/Dreamacro/clash/constant"
 )
+
+func ParseInbound(mapping map[string]any) (C.OtherInbound, error) {
+	decoder := structure.NewDecoder(structure.Option{TagName: "json", WeaklyTypedInput: true})
+	otherInbound, existType := mapping["type"].(string)
+	if !existType {
+		return nil, fmt.Errorf("missing type")
+	}
+	var (
+		inbound C.OtherInbound
+		err     error
+	)
+	switch otherInbound {
+	case "socks":
+		socksOption := &otherinbound.SocksOption{}
+		err = decoder.Decode(mapping, socksOption)
+		if err != nil {
+			break
+		}
+		inbound, err = otherinbound.NewSocks(*socksOption, tunnel.TCPIn(), tunnel.UDPIn())
+	case "http":
+		httpOption := &otherinbound.HttpOption{}
+		err = decoder.Decode(mapping, httpOption)
+		if err != nil {
+			break
+		}
+		inbound, err = otherinbound.NewHttp(*httpOption, tunnel.TCPIn())
+	default:
+		return nil, fmt.Errorf("unsupport proxy type: %s", otherInbound)
+	}
+	return inbound, err
+}
 
 func ParseProxy(mapping map[string]any) (C.Proxy, error) {
 	decoder := structure.NewDecoder(structure.Option{TagName: "proxy", WeaklyTypedInput: true})

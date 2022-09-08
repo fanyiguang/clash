@@ -70,6 +70,9 @@ type Metadata struct {
 	Host        string  `json:"host"`
 	DNSMode     DNSMode `json:"dnsMode"`
 	ProcessPath string  `json:"processPath"`
+
+	// Inbound 标记是从哪个Inbound来的
+	Inbound string `json:"inbound"`
 }
 
 func (m *Metadata) RemoteAddress() string {

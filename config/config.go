@@ -21,7 +21,6 @@ import (
 	"github.com/Dreamacro/clash/log"
 	R "github.com/Dreamacro/clash/rule"
 	T "github.com/Dreamacro/clash/tunnel"
-
 	"gopkg.in/yaml.v3"
 )
 
@@ -98,6 +97,8 @@ type Config struct {
 	Users        []auth.AuthUser
 	Proxies      map[string]C.Proxy
 	Providers    map[string]providerTypes.ProxyProvider
+
+	Inbounds map[string]C.OtherInbound
 }
 
 type RawDNS struct {
@@ -148,6 +149,18 @@ type RawConfig struct {
 	Proxy         []map[string]any          `yaml:"proxies"`
 	ProxyGroup    []map[string]any          `yaml:"proxy-groups"`
 	Rule          []string                  `yaml:"rules"`
+
+	Inbounds []map[string]any `yaml:"inbounds"`
+}
+
+// OtherInbound 用来存储额外的inbound
+type OtherInbound struct {
+	Name     string `yaml:"name"`
+	Type     string `yaml:"type"`
+	Listen   string `yaml:"listen"`
+	Port     int    `yaml:"port"`
+	Username string `yaml:"username"`
+	Password string `yaml:"password"`
 }
 
 // Parse config
@@ -237,7 +250,44 @@ func ParseRawConfig(rawCfg *RawConfig) (*Config, error) {
 
 	config.Users = parseAuthentication(rawCfg.Authentication)
 
+	// config.OtherInbounds = rawCfg.Inbounds
+
+	inbounds, err := parseInbounds(rawCfg)
+	if err != nil {
+		return nil, err
+	}
+	config.Inbounds = inbounds
+
 	return config, nil
+}
+
+func parseInbounds(cfg *RawConfig) (map[string]C.OtherInbound, error) {
+	inbounds := make(map[string]C.OtherInbound)
+	for _, inbound := range cfg.Inbounds {
+		name, ok := inbound["name"].(string)
+		if !ok {
+			return nil, errors.New("inbound name is empty")
+		}
+		if _, ok := inbounds[name]; ok {
+			return nil, fmt.Errorf("duplicated inbound name")
+		}
+
+		iType, ok := inbound["type"].(string)
+		if !ok {
+			return nil, errors.New("inbound type is empty")
+		}
+
+		switch iType {
+		case "socks", "http":
+			i, err := adapter.ParseInbound(inbound)
+			if err != nil {
+				return nil, err
+			}
+
+			inbounds[name] = i
+		}
+	}
+	return inbounds, nil
 }
 
 func parseGeneral(cfg *RawConfig) (*General, error) {
