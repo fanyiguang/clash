@@ -13,6 +13,8 @@ const (
 	Process
 	ProcessPath
 	MATCH
+
+	Inbound
 )
 
 type RuleType int
@@ -41,6 +43,8 @@ func (rt RuleType) String() string {
 		return "ProcessPath"
 	case MATCH:
 		return "Match"
+	case Inbound:
+		return "Inbound"
 	default:
 		return "Unknown"
 	}

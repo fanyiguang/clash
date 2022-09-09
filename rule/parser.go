@@ -37,6 +37,8 @@ func ParseRule(tp, payload, target string, params []string) (C.Rule, error) {
 		parsed, parseErr = NewProcess(payload, target, false)
 	case "MATCH":
 		parsed = NewMatch(target)
+	case "Inbound":
+		parsed = NewInbound(payload, target)
 	default:
 		parseErr = fmt.Errorf("unsupported rule type %s", tp)
 	}
