@@ -4,11 +4,10 @@ import (
 	"fmt"
 
 	"github.com/Dreamacro/clash/adapter/otherinbound"
-	"github.com/Dreamacro/clash/tunnel"
-
 	"github.com/Dreamacro/clash/adapter/outbound"
 	"github.com/Dreamacro/clash/common/structure"
 	C "github.com/Dreamacro/clash/constant"
+	"github.com/Dreamacro/clash/tunnel"
 )
 
 func ParseInbound(mapping map[string]any) (C.OtherInbound, error) {
@@ -36,6 +35,14 @@ func ParseInbound(mapping map[string]any) (C.OtherInbound, error) {
 			break
 		}
 		inbound, err = otherinbound.NewHttp(*httpOption, tunnel.TCPIn())
+	case "direct":
+		// direct 代理直接将流量转发给目标地址
+		directOption := &otherinbound.DirectOption{}
+		err = decoder.Decode(mapping, directOption)
+		if err != nil {
+			break
+		}
+		inbound, err = otherinbound.NewDirect(*directOption, tunnel.TCPIn(), tunnel.UDPIn())
 	default:
 		return nil, fmt.Errorf("unsupport proxy type: %s", otherInbound)
 	}

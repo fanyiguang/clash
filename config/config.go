@@ -278,7 +278,7 @@ func parseInbounds(cfg *RawConfig) (map[string]C.OtherInbound, error) {
 		}
 
 		switch iType {
-		case "socks", "http":
+		case "socks", "http", "direct":
 			i, err := adapter.ParseInbound(inbound)
 			if err != nil {
 				return nil, err
