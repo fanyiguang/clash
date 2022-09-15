@@ -3,6 +3,7 @@ package otherinbound
 import (
 	"fmt"
 	"net"
+	"strconv"
 
 	"github.com/Dreamacro/clash/adapter/inbound"
 	C "github.com/Dreamacro/clash/constant"
@@ -12,7 +13,6 @@ import (
 
 type Direct struct {
 	Base
-	listenAddr string // 监听地址
 
 	Listener    *Listener
 	UDPListener *UDPListener
@@ -30,7 +30,7 @@ type DirectOption struct {
 }
 
 func NewDirect(option DirectOption, tcpIn chan<- C.ConnContext, udpIn chan<- *inbound.PacketAdapter) (*Direct, error) {
-	addr := fmt.Sprintf("%s:%d", option.Listen, option.Port)
+	addr := net.JoinHostPort(option.Listen, strconv.Itoa(option.Port))
 
 	h, p, err := net.SplitHostPort(option.RedirectAddr)
 	if err != nil {
@@ -53,12 +53,12 @@ func NewDirect(option DirectOption, tcpIn chan<- C.ConnContext, udpIn chan<- *in
 	s := &Direct{
 		Base: Base{
 			inboundName: option.Name,
-			inboundType: C.OtherInboundTypeSocks,
+			inboundType: C.OtherInboundTypeDirect,
+			addr:        addr,
 		},
-		listenAddr: addr,
-		tcpIn:      tcpIn,
-		udpIn:      udpIn,
-		cacheMeta:  meta,
+		tcpIn:     tcpIn,
+		udpIn:     udpIn,
+		cacheMeta: meta,
 	}
 
 	if err := s.run(); err != nil {
@@ -114,13 +114,13 @@ func (s *Direct) handleUDP(pc net.PacketConn, buf []byte, addr net.Addr) {
 }
 
 func (s *Direct) run() error {
-	tcpListener, err := NewTCP(s.listenAddr, s.handleTCP)
+	tcpListener, err := NewTCP(s.addr, s.handleTCP)
 	if err != nil {
 		return err
 	}
 	log.Infoln("Direct OtherInbound %s listening at: %s", s.Base.inboundName, tcpListener.Address())
 
-	udpListener, err := NewUDP(s.listenAddr, s.handleUDP)
+	udpListener, err := NewUDP(s.addr, s.handleUDP)
 	if err != nil {
 		tcpListener.Close()
 		return err
@@ -136,4 +136,5 @@ func (s *Direct) run() error {
 func (s *Direct) Close() {
 	s.Listener.Close()
 	s.UDPListener.Close()
+	log.Infoln("Direct OtherInbound %s closed", s.Base.inboundName)
 }

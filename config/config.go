@@ -252,7 +252,7 @@ func ParseRawConfig(rawCfg *RawConfig) (*Config, error) {
 
 	// config.OtherInbounds = rawCfg.Inbounds
 
-	inbounds, err := parseInbounds(rawCfg)
+	inbounds, err := ParseInbounds(rawCfg.Inbounds)
 	if err != nil {
 		return nil, err
 	}
@@ -261,32 +261,45 @@ func ParseRawConfig(rawCfg *RawConfig) (*Config, error) {
 	return config, nil
 }
 
-func parseInbounds(cfg *RawConfig) (map[string]C.OtherInbound, error) {
+func ParseInbounds(cfg []map[string]any) (map[string]C.OtherInbound, error) {
 	inbounds := make(map[string]C.OtherInbound)
-	for _, inbound := range cfg.Inbounds {
+
+	var err error
+
+	for _, inbound := range cfg {
 		name, ok := inbound["name"].(string)
 		if !ok {
-			return nil, errors.New("inbound name is empty")
+			err = errors.New("inbound name is empty")
+			break
 		}
 		if _, ok := inbounds[name]; ok {
-			return nil, fmt.Errorf("duplicated inbound name")
+			err = fmt.Errorf("duplicated inbound name %s", name)
+			break
 		}
 
-		iType, ok := inbound["type"].(string)
-		if !ok {
-			return nil, errors.New("inbound type is empty")
+		if _, ok := inbound["type"].(string); !ok {
+			err = errors.New("inbound type is empty")
+			break
 		}
 
-		switch iType {
-		case "socks", "http", "direct":
-			i, err := adapter.ParseInbound(inbound)
-			if err != nil {
-				return nil, err
-			}
+		var i C.OtherInbound
+		i, err = adapter.ParseInbound(inbound, T.TCPIn(), T.UDPIn())
 
-			inbounds[name] = i
+		if err != nil {
+			break
 		}
+		inbounds[name] = i
+
 	}
+
+	// 停止所有inbound
+	if err != nil {
+		for _, inbound := range inbounds {
+			inbound.Close()
+		}
+		return nil, err
+	}
+
 	return inbounds, nil
 }
 

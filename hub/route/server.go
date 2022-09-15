@@ -11,7 +11,6 @@ import (
 	C "github.com/Dreamacro/clash/constant"
 	"github.com/Dreamacro/clash/log"
 	"github.com/Dreamacro/clash/tunnel/statistic"
-
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
 	"github.com/go-chi/render"
@@ -70,6 +69,9 @@ func Start(addr string, secret string) {
 		r.Mount("/rules", ruleRouter())
 		r.Mount("/connections", connectionRouter())
 		r.Mount("/providers/proxies", proxyProviderRouter())
+		r.Mount("/inbounds", otherInbounds())
+		r.Mount("/outbounds", outbounds())
+		r.Mount("/outboundgroups", outboundGroups())
 	})
 
 	if uiPath != "" {

@@ -2,6 +2,7 @@ package tunnel
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/netip"
@@ -10,7 +11,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Dreamacro/clash/adapter"
 	"github.com/Dreamacro/clash/adapter/inbound"
+	"github.com/Dreamacro/clash/adapter/outboundgroup"
+	aprovider "github.com/Dreamacro/clash/adapter/provider"
 	"github.com/Dreamacro/clash/component/nat"
 	P "github.com/Dreamacro/clash/component/process"
 	"github.com/Dreamacro/clash/component/resolver"
@@ -403,4 +407,95 @@ func match(metadata *C.Metadata) (C.Proxy, C.Rule, error) {
 	}
 
 	return proxies["DIRECT"], nil, nil
+}
+
+func AddOutbounds(params []map[string]any) (err error) {
+	configMux.Lock()
+	defer configMux.Unlock()
+
+	// 检查后再赋值,让update是一个整体,一起失败/成功
+	check := map[string]C.Proxy{}
+	for _, param := range params {
+		if param["name"].(string) == "" {
+			err = errors.New("proxy name required")
+			break
+		}
+		if _, ok := proxies[param["name"].(string)]; ok {
+			err = errors.New("proxy already exist")
+			break
+		}
+		proxy, err := adapter.ParseProxy(param)
+		if err != nil {
+			break
+		}
+		check[proxy.Name()] = proxy
+	}
+	if err != nil {
+		return err
+	}
+	for name := range check {
+		proxies[name] = check[name]
+	}
+
+	ReNewGlobalOutbound()
+	return
+}
+
+func ReNewGlobalOutbound() {
+	ps := []C.Proxy{}
+	for name, v := range proxies {
+		if name != "GLOBAL" {
+			ps = append(ps, v)
+		}
+	}
+
+	hc := aprovider.NewHealthCheck(ps, "", 0, true)
+	pd, _ := aprovider.NewCompatibleProvider(aprovider.ReservedName, ps, hc)
+
+	global := outboundgroup.NewSelector(
+		&outboundgroup.GroupCommonOption{
+			Name: "GLOBAL",
+		},
+		[]provider.ProxyProvider{pd},
+	)
+	proxies["GLOBAL"] = adapter.NewProxy(global).Unwrap()
+}
+
+func DeleteOutbounds(params []string) {
+	configMux.Lock()
+	defer configMux.Unlock()
+
+	for _, param := range params {
+		delete(proxies, param)
+	}
+	ReNewGlobalOutbound()
+}
+
+func AddOutboundGroups(params []map[string]any) (err error) {
+	configMux.Lock()
+	defer configMux.Unlock()
+	check := map[string]C.Proxy{}
+	for _, param := range params {
+		if param["name"].(string) == "" {
+			err = errors.New("proxy name required")
+			break
+		}
+		if _, ok := proxies[param["name"].(string)]; ok {
+			err = errors.New("proxy already exist")
+			break
+		}
+		group, err := outboundgroup.ParseProxyGroup(param, proxies, make(map[string]provider.ProxyProvider))
+		if err != nil {
+			break
+		}
+		check[group.Name()] = adapter.NewProxy(group)
+	}
+	if err != nil {
+		return err
+	}
+	for name := range check {
+		proxies[name] = check[name]
+	}
+	ReNewGlobalOutbound()
+	return
 }

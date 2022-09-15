@@ -122,14 +122,16 @@ type Proxy interface {
 type OtherInbound interface {
 	Name() string
 	Type() OtherInboundType
+	RawAddress() string
 	Close()
 }
 
 type OtherInboundType string
 
 const (
-	OtherInboundTypeHTTP  OtherInboundType = "http"
-	OtherInboundTypeSocks OtherInboundType = "socks5"
+	OtherInboundTypeHTTP   OtherInboundType = "http"
+	OtherInboundTypeSocks  OtherInboundType = "socks5"
+	OtherInboundTypeDirect OtherInboundType = "direct"
 )
 
 // AdapterType is enum of adapter type

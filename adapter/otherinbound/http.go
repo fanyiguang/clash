@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 	_ "unsafe" // for go:linkname
@@ -25,12 +26,11 @@ type HttpOption struct {
 	Name   string `json:"name"`
 	Listen string `json:"listen"`
 	Port   int    `json:"port"`
-	Users  []User `json:"users"`
+	Users  []User `json:"users,omitempty"`
 }
 
 type Http struct {
 	Base
-	addr          string
 	Listener      *Listener
 	TcpIn         chan<- C.ConnContext
 	Cache         *cache.LruCache
@@ -39,6 +39,7 @@ type Http struct {
 
 func (h *Http) Close() {
 	h.Listener.Close()
+	log.Infoln("HTTP OtherInbound %s closed", h.Base.inboundName)
 }
 
 func (h *Http) run() error {
@@ -136,7 +137,7 @@ func (h *Http) handleConn(c net.Conn) {
 }
 
 func NewHttp(option HttpOption, in chan<- C.ConnContext) (*Http, error) {
-	addr := fmt.Sprintf("%s:%d", option.Listen, option.Port)
+	addr := net.JoinHostPort(option.Listen, strconv.Itoa(option.Port))
 
 	var c *cache.LruCache
 	var auth auth.Authenticator
@@ -149,8 +150,8 @@ func NewHttp(option HttpOption, in chan<- C.ConnContext) (*Http, error) {
 		Base: Base{
 			inboundName: option.Name,
 			inboundType: C.OtherInboundTypeHTTP,
+			addr:        addr,
 		},
-		addr:          addr,
 		TcpIn:         in,
 		Cache:         c,
 		Authenticator: auth,

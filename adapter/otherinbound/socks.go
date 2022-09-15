@@ -1,9 +1,9 @@
 package otherinbound
 
 import (
-	"fmt"
 	"io"
 	"net"
+	"strconv"
 
 	"github.com/Dreamacro/clash/adapter/inbound"
 	N "github.com/Dreamacro/clash/common/net"
@@ -19,12 +19,11 @@ type SocksOption struct {
 	Name   string `json:"name"`
 	Listen string `json:"listen"`
 	Port   int    `json:"port"`
-	Users  []User `json:"users"`
+	Users  []User `json:"users,omitempty"`
 }
 
 type Socks struct {
 	Base
-	addr          string
 	Listener      *Listener
 	UDPListener   *UDPListener
 	tcpIn         chan<- C.ConnContext
@@ -54,6 +53,7 @@ func (s *Socks) run() error {
 func (s *Socks) Close() {
 	s.Listener.Close()
 	s.UDPListener.Close()
+	log.Infoln("SOCKS OtherInbound %s closed", s.Base.inboundName)
 }
 
 func (s *Socks) handleSocks(conn net.Conn) {
@@ -127,19 +127,19 @@ func (s *Socks) handleSocksUDP(pc net.PacketConn, buf []byte, addr net.Addr) {
 	}
 }
 
-func NewSocks(inbound SocksOption, tcpIn chan<- C.ConnContext, udpIn chan<- *inbound.PacketAdapter) (*Socks, error) {
-	addr := fmt.Sprintf("%s:%d", inbound.Listen, inbound.Port)
+func NewSocks(option SocksOption, tcpIn chan<- C.ConnContext, udpIn chan<- *inbound.PacketAdapter) (*Socks, error) {
+	addr := net.JoinHostPort(option.Listen, strconv.Itoa(option.Port))
 
 	var auth auth.Authenticator
-	if len(inbound.Users) > 0 {
-		auth = NewAuthenticator(inbound.Users)
+	if len(option.Users) > 0 {
+		auth = NewAuthenticator(option.Users)
 	}
 	s := &Socks{
 		Base: Base{
-			inboundName: inbound.Name,
+			inboundName: option.Name,
 			inboundType: C.OtherInboundTypeSocks,
+			addr:        addr,
 		},
-		addr:          addr,
 		tcpIn:         tcpIn,
 		udpIn:         udpIn,
 		Authenticator: auth,

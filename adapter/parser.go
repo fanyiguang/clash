@@ -3,14 +3,14 @@ package adapter
 import (
 	"fmt"
 
+	"github.com/Dreamacro/clash/adapter/inbound"
 	"github.com/Dreamacro/clash/adapter/otherinbound"
 	"github.com/Dreamacro/clash/adapter/outbound"
 	"github.com/Dreamacro/clash/common/structure"
 	C "github.com/Dreamacro/clash/constant"
-	"github.com/Dreamacro/clash/tunnel"
 )
 
-func ParseInbound(mapping map[string]any) (C.OtherInbound, error) {
+func ParseInbound(mapping map[string]any, tcpIn chan<- C.ConnContext, udpIn chan<- *inbound.PacketAdapter) (C.OtherInbound, error) {
 	decoder := structure.NewDecoder(structure.Option{TagName: "json", WeaklyTypedInput: true})
 	otherInbound, existType := mapping["type"].(string)
 	if !existType {
@@ -27,24 +27,23 @@ func ParseInbound(mapping map[string]any) (C.OtherInbound, error) {
 		if err != nil {
 			break
 		}
-		inbound, err = otherinbound.NewSocks(*socksOption, tunnel.TCPIn(), tunnel.UDPIn())
+		inbound, err = otherinbound.NewSocks(*socksOption, tcpIn, udpIn)
 	case "http":
 		httpOption := &otherinbound.HttpOption{}
 		err = decoder.Decode(mapping, httpOption)
 		if err != nil {
 			break
 		}
-		inbound, err = otherinbound.NewHttp(*httpOption, tunnel.TCPIn())
+		inbound, err = otherinbound.NewHttp(*httpOption, tcpIn)
 	case "direct":
-		// direct 代理直接将流量转发给目标地址
 		directOption := &otherinbound.DirectOption{}
 		err = decoder.Decode(mapping, directOption)
 		if err != nil {
 			break
 		}
-		inbound, err = otherinbound.NewDirect(*directOption, tunnel.TCPIn(), tunnel.UDPIn())
+		inbound, err = otherinbound.NewDirect(*directOption, tcpIn, udpIn)
 	default:
-		return nil, fmt.Errorf("unsupport proxy type: %s", otherInbound)
+		return nil, fmt.Errorf("unsupported proxy type: %s", otherInbound)
 	}
 	return inbound, err
 }

@@ -1,12 +1,14 @@
 package proxy
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"strconv"
 	"sync"
 
 	"github.com/Dreamacro/clash/adapter/inbound"
+	"github.com/Dreamacro/clash/config"
 	C "github.com/Dreamacro/clash/constant"
 	"github.com/Dreamacro/clash/listener/http"
 	"github.com/Dreamacro/clash/listener/mixed"
@@ -39,7 +41,7 @@ var (
 	tproxyMux sync.Mutex
 	mixedMux  sync.Mutex
 
-	otherInboundsMux sync.Mutex
+	otherInboundsMux sync.RWMutex
 )
 
 type Ports struct {
@@ -311,16 +313,48 @@ func SetOtherInbounds(inbounds map[string]C.OtherInbound) {
 	otherInbounds = inbounds
 }
 
-func AddOtherInbounds(inbound C.OtherInbound) error {
+func AddOtherInbounds(params []map[string]any) (err error) {
 	otherInboundsMux.Lock()
 	defer otherInboundsMux.Unlock()
-	if _, ok := otherInbounds[inbound.Name()]; ok {
-		inbound.Close()
-		return fmt.Errorf("inbound tag %s already exists", inbound.Name())
+	check, err := config.ParseInbounds(params)
+	if err != nil {
+		return err
 	}
-	otherInbounds[inbound.Name()] = inbound
 
-	return nil
+	// 检查是否有重名
+	for name := range check {
+		if _, ok := otherInbounds[name]; ok {
+			// 发现一个重名就关闭所有inbound
+			for _, i := range check {
+				i.Close()
+			}
+			return errors.New("Other inbound " + name + " already exists")
+		}
+	}
+
+	// 3.检查成功,保存inbound
+	for name, i := range check {
+		otherInbounds[name] = i
+	}
+	return
+}
+
+func GetOtherInbounds() map[string]C.OtherInbound {
+	otherInboundsMux.RLock()
+	defer otherInboundsMux.RUnlock()
+	return otherInbounds
+}
+
+func DeleteOtherInbound(names []string) {
+	otherInboundsMux.Lock()
+	defer otherInboundsMux.Unlock()
+
+	for _, name := range names {
+		if inbound, ok := otherInbounds[name]; ok {
+			inbound.Close()
+			delete(otherInbounds, name)
+		}
+	}
 }
 
 // GetPorts return the ports of proxy servers
