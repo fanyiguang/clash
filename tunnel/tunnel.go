@@ -458,7 +458,7 @@ func ReNewGlobalOutbound() {
 		},
 		[]provider.ProxyProvider{pd},
 	)
-	proxies["GLOBAL"] = adapter.NewProxy(global).Unwrap()
+	proxies["GLOBAL"] = adapter.NewProxy(global)
 }
 
 func DeleteOutbounds(params []string) {
