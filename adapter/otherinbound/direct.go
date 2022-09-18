@@ -23,11 +23,12 @@ type Direct struct {
 }
 
 type DirectOption struct {
-	BaseOption
+	Listen       string `yaml:"listen" json:"listen"`
+	Port         int    `yaml:"port" json:"port"`
 	RedirectAddr string `json:"redirect-addr"` // 重定向地址，把从监听地址收到的数据转发到这个地址
 }
 
-func NewDirect(option DirectOption, tcpIn chan<- C.ConnContext, udpIn chan<- *inbound.PacketAdapter) (*Direct, error) {
+func NewDirect(option DirectOption, name string, tcpIn chan<- C.ConnContext, udpIn chan<- *inbound.PacketAdapter) (*Direct, error) {
 	addr := net.JoinHostPort(option.Listen, strconv.Itoa(option.Port))
 
 	h, p, err := net.SplitHostPort(option.RedirectAddr)
@@ -42,7 +43,7 @@ func NewDirect(option DirectOption, tcpIn chan<- C.ConnContext, udpIn chan<- *in
 		DstIP:   nil,
 		DstPort: p,
 		Host:    h,
-		Inbound: option.Name,
+		Inbound: name,
 	}
 	if ip := net.ParseIP(h); ip != nil {
 		meta.DstIP = ip
@@ -50,8 +51,8 @@ func NewDirect(option DirectOption, tcpIn chan<- C.ConnContext, udpIn chan<- *in
 
 	s := &Direct{
 		Base: Base{
-			inboundName: option.Name,
-			inboundType: C.OtherInboundTypeDirect,
+			inboundName: name,
+			inboundType: C.DIRECTInbound,
 			addr:        addr,
 		},
 		tcpIn:     tcpIn,

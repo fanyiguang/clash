@@ -5,17 +5,21 @@ import (
 	"errors"
 
 	"github.com/Dreamacro/clash/adapter/outbound"
+	C "github.com/Dreamacro/clash/constant"
+
+	"gopkg.in/yaml.v3"
 )
 
 type Proxy struct {
-	Name              string                     `yaml:"name" json:"name"`
-	Type              ProxyType                  `yaml:"type" json:"type"`
-	HttpOption        outbound.HttpOption        `yaml:"-" json:"-"`
-	ShadowSocksOption outbound.ShadowSocksOption `yaml:"-" json:"-"`
-	SnellOption       outbound.SnellOption       `yaml:"-" json:"-"`
-	Socks5Option      outbound.Socks5Option      `yaml:"-" json:"-"`
-	TrojanOption      outbound.TrojanOption      `yaml:"-" json:"-"`
-	VmessOption       outbound.VmessOption       `yaml:"-" json:"-"`
+	Name               string                      `yaml:"name" json:"name"`
+	Type               C.ProxyType                 `yaml:"type" json:"type"`
+	HttpOption         outbound.HttpOption         `yaml:"-" json:"-"`
+	ShadowSocksOption  outbound.ShadowSocksOption  `yaml:"-" json:"-"`
+	ShadowSocksROption outbound.ShadowSocksROption `yaml:"-" json:"-"`
+	SnellOption        outbound.SnellOption        `yaml:"-" json:"-"`
+	Socks5Option       outbound.Socks5Option       `yaml:"-" json:"-"`
+	TrojanOption       outbound.TrojanOption       `yaml:"-" json:"-"`
+	VmessOption        outbound.VmessOption        `yaml:"-" json:"-"`
 }
 
 type _Proxy Proxy
@@ -23,17 +27,17 @@ type _Proxy Proxy
 func (p *Proxy) MarshalJSON() ([]byte, error) {
 	var v any
 	switch p.Type {
-	case HttpProxy:
+	case C.ProxyTypeHttp:
 		v = &p.HttpOption
-	case ShadowSocksProxy, ShadowSocksRProxy:
+	case C.ProxyTypeShadowSocks, C.ProxyTypeShadowSocksR:
 		v = &p.ShadowSocksOption
-	case SnellProxy:
+	case C.ProxyTypeSnell:
 		v = &p.SnellOption
-	case Socks5Proxy:
+	case C.ProxyTypeSocks5:
 		v = &p.Socks5Option
-	case TrojanProxy:
+	case C.ProxyTypeTrojan:
 		v = &p.TrojanOption
-	case VmessProxy:
+	case C.ProxyTypeVmess:
 		v = &p.VmessOption
 	default:
 		return nil, errors.New("unknown proxy type")
@@ -48,17 +52,21 @@ func (p *Proxy) UnmarshalJSON(b []byte) error {
 	}
 	var v any
 	switch p.Type {
-	case HttpProxy:
+	case C.ProxyTypeHttp:
 		v = &p.HttpOption
-	case ShadowSocksProxy, ShadowSocksRProxy:
+	case C.ProxyTypeShadowSocks, C.ProxyTypeShadowSocksR:
 		v = &p.ShadowSocksOption
-	case SnellProxy:
+	case C.ProxyTypeSnell:
 		v = &p.SnellOption
-	case Socks5Proxy:
+	case C.ProxyTypeSocks5:
 		v = &p.Socks5Option
-	case TrojanProxy:
+	case C.ProxyTypeTrojan:
 		v = &p.TrojanOption
-	case VmessProxy:
+	case C.ProxyTypeVmess:
+		p.VmessOption.HTTPOpts = outbound.HTTPOptions{
+			Method: "GET",
+			Path:   []string{"/"},
+		}
 		v = &p.VmessOption
 	default:
 		return errors.New("unknown proxy type")
@@ -66,16 +74,6 @@ func (p *Proxy) UnmarshalJSON(b []byte) error {
 	return json.Unmarshal(b, v)
 }
 
-type ProxyType uint8
-
-const (
-	DirectTProxy ProxyType = iota
-	HttpProxy
-	RejectProxy
-	ShadowSocksProxy
-	ShadowSocksRProxy
-	SnellProxy
-	Socks5Proxy
-	TrojanProxy
-	VmessProxy
-)
+func (p *Proxy) UnmarshalYAML(node *yaml.Node) error {
+	return UnmarshalYAML(node, p)
+}

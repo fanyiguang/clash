@@ -16,8 +16,9 @@ import (
 )
 
 type SocksOption struct {
-	BaseOption
-	Users []User `json:"users,omitempty"`
+	Listen string `yaml:"listen" json:"listen"`
+	Port   int    `yaml:"port" json:"port"`
+	Users  []User `json:"users,omitempty"`
 }
 
 type Socks struct {
@@ -125,7 +126,7 @@ func (s *Socks) handleSocksUDP(pc net.PacketConn, buf []byte, addr net.Addr) {
 	}
 }
 
-func NewSocks(option SocksOption, tcpIn chan<- C.ConnContext, udpIn chan<- *inbound.PacketAdapter) (*Socks, error) {
+func NewSocks(option SocksOption, name string, tcpIn chan<- C.ConnContext, udpIn chan<- *inbound.PacketAdapter) (*Socks, error) {
 	addr := net.JoinHostPort(option.Listen, strconv.Itoa(option.Port))
 
 	var auth auth.Authenticator
@@ -134,8 +135,8 @@ func NewSocks(option SocksOption, tcpIn chan<- C.ConnContext, udpIn chan<- *inbo
 	}
 	s := &Socks{
 		Base: Base{
-			inboundName: option.Name,
-			inboundType: C.OtherInboundTypeSocks,
+			inboundName: name,
+			inboundType: C.SOCKSInbound,
 			addr:        addr,
 		},
 		tcpIn:         tcpIn,

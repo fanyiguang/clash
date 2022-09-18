@@ -1,11 +1,14 @@
 package config
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
 	"github.com/Dreamacro/clash/adapter/outboundgroup"
 	"github.com/Dreamacro/clash/common/structure"
+
+	"gopkg.in/yaml.v3"
 )
 
 func trimArr(arr []string) (r []string) {
@@ -145,4 +148,67 @@ func proxyGroupsDagSort(groupsConfig []map[string]any) error {
 		delete(graph, name)
 	}
 	return fmt.Errorf("loop is detected in ProxyGroup, please check following ProxyGroups: %v", loopElements)
+}
+
+// UnmarshalYAML 由于底层只支持 json 转换，先将配置文件转换为json，再调用json.Unmarshal
+func UnmarshalYAML(node *yaml.Node, v any) error {
+	b, err := YamlNodeToJSON(node)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(b, v)
+}
+
+// YamlNodeToJSON converts yaml.Node to json
+func YamlNodeToJSON(node *yaml.Node) ([]byte, error) {
+	var m map[string]any
+	err := node.Decode(&m)
+	if err != nil {
+		return nil, err
+	}
+	return json.Marshal(m)
+}
+
+func ToMap(v any) (map[string]any, error) {
+	inputContent, err := json.Marshal(v)
+	if err != nil {
+		return nil, err
+	}
+	var result map[string]any
+	err = json.Unmarshal(inputContent, &result)
+	return result, err
+}
+
+func MergeObjects(objects ...any) (map[string]any, error) {
+	result := map[string]any{}
+	for _, obj := range objects {
+		m, err := ToMap(obj)
+		if err != nil {
+			return nil, err
+		}
+		for k, v := range m {
+			result[k] = v
+		}
+	}
+	return result, nil
+}
+
+func MarshalObjects(objects ...any) ([]byte, error) {
+	left, right := 0, len(objects)-1
+	for left <= right {
+		if objects[left] == nil {
+			objects[left], objects[right] = objects[right], objects[left]
+			right--
+			continue
+		}
+		left++
+	}
+	if len(objects) <= 1 {
+		return json.Marshal(objects[0])
+	}
+	content, err := MergeObjects(objects...)
+	if err != nil {
+		return nil, err
+	}
+	return json.Marshal(content)
 }

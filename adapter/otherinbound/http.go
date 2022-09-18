@@ -23,8 +23,9 @@ import (
 )
 
 type HttpOption struct {
-	BaseOption
-	Users []User `json:"users,omitempty"`
+	Listen string `yaml:"listen" json:"listen"`
+	Port   int    `yaml:"port" json:"port"`
+	Users  []User `json:"users,omitempty"`
 }
 
 type Http struct {
@@ -134,7 +135,7 @@ func (h *Http) handleConn(c net.Conn) {
 	conn.Close()
 }
 
-func NewHttp(option HttpOption, in chan<- C.ConnContext) (*Http, error) {
+func NewHttp(option HttpOption, name string, in chan<- C.ConnContext) (*Http, error) {
 	addr := net.JoinHostPort(option.Listen, strconv.Itoa(option.Port))
 
 	var c *cache.LruCache
@@ -146,8 +147,8 @@ func NewHttp(option HttpOption, in chan<- C.ConnContext) (*Http, error) {
 
 	h := &Http{
 		Base: Base{
-			inboundName: option.Name,
-			inboundType: C.OtherInboundTypeHTTP,
+			inboundName: name,
+			inboundType: C.HTTPInbound,
 			addr:        addr,
 		},
 		TcpIn:         in,

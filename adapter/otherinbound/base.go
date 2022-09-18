@@ -1,28 +1,21 @@
 package otherinbound
 
-import "github.com/Dreamacro/clash/constant"
+import C "github.com/Dreamacro/clash/constant"
 
 type Base struct {
 	addr        string
 	inboundName string
-	inboundType constant.OtherInboundType
+	inboundType C.InboundType
 }
 
 func (b Base) Name() string {
 	return b.inboundName
 }
 
-func (b Base) Type() constant.OtherInboundType {
+func (b Base) Type() C.InboundType {
 	return b.inboundType
 }
 
 func (b Base) RawAddress() string {
 	return b.addr
-}
-
-type BaseOption struct {
-	Type   string `yaml:"type" json:"type"`
-	Name   string `yaml:"name" json:"name"`
-	Listen string `yaml:"listen" json:"listen"`
-	Port   int    `yaml:"port" json:"port"`
 }

@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/Dreamacro/clash/tunnel"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
 )
@@ -40,9 +41,7 @@ func getRules(w http.ResponseWriter, r *http.Request) {
 }
 
 func addRules(w http.ResponseWriter, r *http.Request) {
-
 }
 
 func deleteRules(w http.ResponseWriter, r *http.Request) {
-
 }

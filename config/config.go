@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -22,6 +23,7 @@ import (
 	"github.com/Dreamacro/clash/log"
 	R "github.com/Dreamacro/clash/rule"
 	T "github.com/Dreamacro/clash/tunnel"
+
 	"gopkg.in/yaml.v3"
 )
 
@@ -147,7 +149,7 @@ type RawConfig struct {
 	DNS           RawDNS                    `yaml:"dns"`
 	Experimental  Experimental              `yaml:"experimental"`
 	Profile       Profile                   `yaml:"profile"`
-	Proxy         []map[string]any          `yaml:"proxies"`
+	Proxy         []Proxy                   `yaml:"proxies"`
 	ProxyGroup    []map[string]any          `yaml:"proxy-groups"`
 	Rule          []string                  `yaml:"rules"`
 	Inbounds      []OtherInbound            `yaml:"inbounds"`
@@ -173,7 +175,7 @@ func UnmarshalRawConfig(buf []byte) (*RawConfig, error) {
 		LogLevel:       log.INFO,
 		Hosts:          map[string]string{},
 		Rule:           []string{},
-		Proxy:          []map[string]any{},
+		Proxy:          []Proxy{},
 		ProxyGroup:     []map[string]any{},
 		DNS: RawDNS{
 			Enable:      false,
@@ -259,12 +261,12 @@ func ParseInbounds(cfg []OtherInbound) (map[string]C.OtherInbound, error) {
 	for _, c := range cfg {
 		var i C.OtherInbound
 		switch c.Type {
-		case HTTPInbound:
-			i, err = otherinbound.NewHttp(c.HttpOption, T.TCPIn())
-		case SOCKSInbound:
-			i, err = otherinbound.NewSocks(c.SocksOption, T.TCPIn(), T.UDPIn())
-		case DIRECTInbound:
-			i, err = otherinbound.NewDirect(c.DirectOption, T.TCPIn(), T.UDPIn())
+		case C.HTTPInbound:
+			i, err = otherinbound.NewHttp(c.HttpOption, c.Name, T.TCPIn())
+		case C.SOCKSInbound:
+			i, err = otherinbound.NewSocks(c.SocksOption, c.Name, T.TCPIn(), T.UDPIn())
+		case C.DIRECTInbound:
+			i, err = otherinbound.NewDirect(c.DirectOption, c.Name, T.TCPIn(), T.UDPIn())
 		default:
 			err = errors.New("unknown inboundType: " + c.Type.String())
 		}
@@ -320,7 +322,7 @@ func parseGeneral(cfg *RawConfig) (*General, error) {
 func parseProxies(cfg *RawConfig) (proxies map[string]C.Proxy, providersMap map[string]providerTypes.ProxyProvider, err error) {
 	proxies = make(map[string]C.Proxy)
 	providersMap = make(map[string]providerTypes.ProxyProvider)
-	proxyList := []string{}
+	var proxyList []string
 	proxiesConfig := cfg.Proxy
 	groupsConfig := cfg.ProxyGroup
 	providersConfig := cfg.ProxyProvider
@@ -330,8 +332,8 @@ func parseProxies(cfg *RawConfig) (proxies map[string]C.Proxy, providersMap map[
 	proxyList = append(proxyList, "DIRECT", "REJECT")
 
 	// parse proxy
-	for idx, mapping := range proxiesConfig {
-		proxy, err := adapter.ParseProxy(mapping)
+	for idx, proxyConfig := range proxiesConfig {
+		proxy, err := ParseProxy(proxyConfig)
 		if err != nil {
 			return nil, nil, fmt.Errorf("proxy %d: %w", idx, err)
 		}
@@ -363,7 +365,7 @@ func parseProxies(cfg *RawConfig) (proxies map[string]C.Proxy, providersMap map[
 			return nil, nil, fmt.Errorf("can not defined a provider called `%s`", provider.ReservedName)
 		}
 
-		pd, err := provider.ParseProxyProvider(name, mapping)
+		pd, err := provider.ParseProxyProvider(name, mapping, parseProxyFromBytes)
 		if err != nil {
 			return nil, nil, fmt.Errorf("parse proxy provider %s error: %w", name, err)
 		}
@@ -405,7 +407,7 @@ func parseProxies(cfg *RawConfig) (proxies map[string]C.Proxy, providersMap map[
 		}
 	}
 
-	ps := []C.Proxy{}
+	var ps []C.Proxy
 	for _, v := range proxyList {
 		ps = append(ps, proxies[v])
 	}
@@ -424,7 +426,7 @@ func parseProxies(cfg *RawConfig) (proxies map[string]C.Proxy, providersMap map[
 }
 
 func parseRules(cfg *RawConfig, proxies map[string]C.Proxy) ([]C.Rule, error) {
-	rules := []C.Rule{}
+	var rules []C.Rule
 	rulesConfig := cfg.Rule
 
 	// parse rules
@@ -433,7 +435,7 @@ func parseRules(cfg *RawConfig, proxies map[string]C.Proxy) ([]C.Rule, error) {
 		var (
 			payload string
 			target  string
-			params  = []string{}
+			params  []string
 		)
 
 		switch l := len(rule); {
@@ -507,7 +509,7 @@ func hostWithDefaultPort(host string, defPort string) (string, error) {
 }
 
 func parseNameServer(servers []string) ([]dns.NameServer, error) {
-	nameservers := []dns.NameServer{}
+	var nameservers []dns.NameServer
 
 	for idx, server := range servers {
 		// parse without scheme .e.g 8.8.8.8:53
@@ -579,7 +581,7 @@ func parseNameServerPolicy(nsPolicy map[string]string) (map[string]dns.NameServe
 }
 
 func parseFallbackIPCIDR(ips []string) ([]*net.IPNet, error) {
-	ipNets := []*net.IPNet{}
+	var ipNets []*net.IPNet
 
 	for idx, ip := range ips {
 		_, ipnet, err := net.ParseCIDR(ip)
@@ -677,11 +679,51 @@ func parseDNS(rawCfg *RawConfig, hosts *trie.DomainTrie) (*DNS, error) {
 }
 
 func parseAuthentication(rawRecords []string) []auth.AuthUser {
-	users := []auth.AuthUser{}
+	var users []auth.AuthUser
 	for _, line := range rawRecords {
 		if user, pass, found := strings.Cut(line, ":"); found {
 			users = append(users, auth.AuthUser{User: user, Pass: pass})
 		}
 	}
 	return users
+}
+
+func ParseProxy(p Proxy) (C.Proxy, error) {
+	var (
+		proxy C.ProxyAdapter
+		err   error
+	)
+
+	switch p.Type {
+	case C.ProxyTypeShadowSocks:
+		proxy, err = outbound.NewShadowSocks(p.ShadowSocksOption)
+	case C.ProxyTypeShadowSocksR:
+		proxy, err = outbound.NewShadowSocksR(p.ShadowSocksROption)
+	case C.ProxyTypeSocks5:
+		proxy = outbound.NewSocks5(p.Socks5Option)
+	case C.ProxyTypeHttp:
+		proxy = outbound.NewHttp(p.HttpOption)
+	case C.ProxyTypeVmess:
+		proxy, err = outbound.NewVmess(p.VmessOption)
+	case C.ProxyTypeSnell:
+		proxy, err = outbound.NewSnell(p.SnellOption)
+	case C.ProxyTypeTrojan:
+		proxy, err = outbound.NewTrojan(p.TrojanOption)
+	default:
+		return nil, fmt.Errorf("unsupport proxy type: %s", p.Type)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return adapter.NewProxy(proxy), nil
+}
+
+func parseProxyFromBytes(data []byte) (C.Proxy, error) {
+	var c Proxy
+	if err := json.Unmarshal(data, &c); err != nil {
+		return nil, err
+	}
+	return ParseProxy(c)
 }

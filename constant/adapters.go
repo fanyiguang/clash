@@ -2,6 +2,7 @@ package constant
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net"
 	"time"
@@ -118,21 +119,92 @@ type Proxy interface {
 	// Deprecated: use DialPacketConn instead.
 	DialUDP(metadata *Metadata) (PacketConn, error)
 }
+type InboundType uint8
+
+const (
+	HTTPInbound InboundType = iota
+	SOCKSInbound
+	DIRECTInbound
+)
+
+func (t InboundType) String() string {
+	return [...]string{"http", "socks", "direct"}[t]
+}
+
+func (t *InboundType) FromString(kind string) InboundType {
+	return map[string]InboundType{
+		"http":   HTTPInbound,
+		"socks":  SOCKSInbound,
+		"direct": DIRECTInbound,
+	}[kind]
+}
+
+func (t InboundType) MarshalJSON() ([]byte, error) {
+	return json.Marshal(t.String())
+}
+
+func (t *InboundType) UnmarshalJSON(b []byte) error {
+	var s string
+	err := json.Unmarshal(b, &s)
+	if err != nil {
+		return err
+	}
+	*t = t.FromString(s)
+	return nil
+}
+
+type ProxyType uint8
+
+const (
+	ProxyTypeDirect ProxyType = iota
+	ProxyTypeHttp
+	ProxyTypeReject
+	ProxyTypeShadowSocks
+	ProxyTypeShadowSocksR
+	ProxyTypeSnell
+	ProxyTypeSocks5
+	ProxyTypeTrojan
+	ProxyTypeVmess
+)
+
+func (t ProxyType) String() string {
+	return [...]string{"direct", "http", "reject", "ss", "ssr", "snell", "socks5", "trojan", "vmess"}[t]
+}
+
+func (t *ProxyType) FromString(kind string) ProxyType {
+	return map[string]ProxyType{
+		"direct": ProxyTypeDirect,
+		"http":   ProxyTypeHttp,
+		"reject": ProxyTypeReject,
+		"ss":     ProxyTypeShadowSocks,
+		"ssr":    ProxyTypeShadowSocksR,
+		"snell":  ProxyTypeSnell,
+		"socks5": ProxyTypeSocks5,
+		"trojan": ProxyTypeTrojan,
+		"vmess":  ProxyTypeVmess,
+	}[kind]
+}
+
+func (t ProxyType) MarshalJSON() ([]byte, error) {
+	return json.Marshal(t.String())
+}
+
+func (t *ProxyType) UnmarshalJSON(b []byte) error {
+	var s string
+	err := json.Unmarshal(b, &s)
+	if err != nil {
+		return err
+	}
+	*t = t.FromString(s)
+	return nil
+}
 
 type OtherInbound interface {
 	Name() string
-	Type() OtherInboundType
+	Type() InboundType
 	RawAddress() string
 	Close()
 }
-
-type OtherInboundType string
-
-const (
-	OtherInboundTypeHTTP   OtherInboundType = "http"
-	OtherInboundTypeSocks  OtherInboundType = "socks5"
-	OtherInboundTypeDirect OtherInboundType = "direct"
-)
 
 // AdapterType is enum of adapter type
 type AdapterType int

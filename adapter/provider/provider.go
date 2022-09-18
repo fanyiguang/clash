@@ -8,7 +8,6 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/Dreamacro/clash/adapter"
 	C "github.com/Dreamacro/clash/constant"
 	types "github.com/Dreamacro/clash/constant/provider"
 
@@ -96,7 +95,7 @@ func stopProxyProvider(pd *ProxySetProvider) {
 	pd.fetcher.Destroy()
 }
 
-func NewProxySetProvider(name string, interval time.Duration, filter string, vehicle types.Vehicle, hc *HealthCheck) (*ProxySetProvider, error) {
+func NewProxySetProvider(name string, interval time.Duration, filter string, vehicle types.Vehicle, hc *HealthCheck, parseProxyFromBytes func([]byte) (C.Proxy, error)) (*ProxySetProvider, error) {
 	filterReg, err := regexp.Compile(filter)
 	if err != nil {
 		return nil, fmt.Errorf("invalid filter regex: %w", err)
@@ -128,15 +127,21 @@ func NewProxySetProvider(name string, interval time.Duration, filter string, veh
 		}
 
 		proxies := []C.Proxy{}
+
 		for idx, mapping := range schema.Proxies {
+
+			j, err := json.Marshal(mapping)
+			if err != nil {
+				continue
+			}
 			if name, ok := mapping["name"].(string); ok && len(filter) > 0 && !filterReg.MatchString(name) {
 				continue
 			}
-			proxy, err := adapter.ParseProxy(mapping)
+			p, err := parseProxyFromBytes(j)
 			if err != nil {
 				return nil, fmt.Errorf("proxy %d error: %w", idx, err)
 			}
-			proxies = append(proxies, proxy)
+			proxies = append(proxies, p)
 		}
 
 		if len(proxies) == 0 {

@@ -409,26 +409,22 @@ func match(metadata *C.Metadata) (C.Proxy, C.Rule, error) {
 	return proxies["DIRECT"], nil, nil
 }
 
-func AddOutbounds(params []map[string]any) (err error) {
+func AddOutbounds(ps []C.Proxy) (err error) {
 	configMux.Lock()
 	defer configMux.Unlock()
 
 	// 检查后再赋值,让update是一个整体,一起失败/成功
 	check := map[string]C.Proxy{}
-	for _, param := range params {
-		if param["name"].(string) == "" {
+	for _, p := range ps {
+		if p.Name() == "" {
 			err = errors.New("proxy name required")
 			break
 		}
-		if _, ok := proxies[param["name"].(string)]; ok {
+		if _, ok := proxies[p.Name()]; ok {
 			err = errors.New("proxy already exist")
 			break
 		}
-		proxy, err := adapter.ParseProxy(param)
-		if err != nil {
-			break
-		}
-		check[proxy.Name()] = proxy
+		check[p.Name()] = p
 	}
 	if err != nil {
 		return err
