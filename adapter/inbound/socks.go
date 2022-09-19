@@ -1,11 +1,11 @@
-package otherinbound
+package inbound
 
 import (
 	"io"
 	"net"
 	"strconv"
 
-	"github.com/Dreamacro/clash/adapter/inbound"
+	"github.com/Dreamacro/clash/adapter/defaultinbound"
 	N "github.com/Dreamacro/clash/common/net"
 	"github.com/Dreamacro/clash/common/pool"
 	"github.com/Dreamacro/clash/component/auth"
@@ -26,7 +26,7 @@ type Socks struct {
 	Listener      *Listener
 	UDPListener   *UDPListener
 	tcpIn         chan<- C.ConnContext
-	udpIn         chan<- *inbound.PacketAdapter
+	udpIn         chan<- *defaultinbound.PacketAdapter
 	Authenticator auth.Authenticator
 }
 
@@ -80,7 +80,7 @@ func (s *Socks) HandleSocks4(conn net.Conn) {
 		conn.Close()
 		return
 	}
-	connContext := inbound.NewSocket(socks5.ParseAddr(addr), conn, C.SOCKS4)
+	connContext := defaultinbound.NewSocket(socks5.ParseAddr(addr), conn, C.SOCKS4)
 	connContext.Metadata().Inbound = s.inboundName
 
 	s.tcpIn <- connContext
@@ -98,7 +98,7 @@ func (s *Socks) HandleSocks5(conn net.Conn) {
 		return
 	}
 
-	connContext := inbound.NewSocket(target, conn, C.SOCKS5)
+	connContext := defaultinbound.NewSocket(target, conn, C.SOCKS5)
 	connContext.Metadata().Inbound = s.inboundName
 	s.tcpIn <- connContext
 }
@@ -117,7 +117,7 @@ func (s *Socks) handleSocksUDP(pc net.PacketConn, buf []byte, addr net.Addr) {
 		bufRef:  buf,
 	}
 
-	packetAdapter := inbound.NewPacket(target, packet, C.SOCKS5)
+	packetAdapter := defaultinbound.NewPacket(target, packet, C.SOCKS5)
 	packetAdapter.Metadata().Inbound = s.inboundName
 
 	select {
@@ -126,7 +126,7 @@ func (s *Socks) handleSocksUDP(pc net.PacketConn, buf []byte, addr net.Addr) {
 	}
 }
 
-func NewSocks(option SocksOption, name string, tcpIn chan<- C.ConnContext, udpIn chan<- *inbound.PacketAdapter) (*Socks, error) {
+func NewSocks(option SocksOption, name string, tcpIn chan<- C.ConnContext, udpIn chan<- *defaultinbound.PacketAdapter) (*Socks, error) {
 	addr := net.JoinHostPort(option.Listen, strconv.Itoa(option.Port))
 
 	var auth auth.Authenticator

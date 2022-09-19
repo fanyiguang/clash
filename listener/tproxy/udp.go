@@ -4,7 +4,7 @@ import (
 	"net"
 	"net/netip"
 
-	"github.com/Dreamacro/clash/adapter/inbound"
+	"github.com/Dreamacro/clash/adapter/defaultinbound"
 	"github.com/Dreamacro/clash/common/pool"
 	C "github.com/Dreamacro/clash/constant"
 	"github.com/Dreamacro/clash/transport/socks5"
@@ -32,7 +32,7 @@ func (l *UDPListener) Close() error {
 	return l.packetConn.Close()
 }
 
-func NewUDP(addr string, in chan<- *inbound.PacketAdapter) (*UDPListener, error) {
+func NewUDP(addr string, in chan<- *defaultinbound.PacketAdapter) (*UDPListener, error) {
 	l, err := net.ListenPacket("udp", addr)
 	if err != nil {
 		return nil, err
@@ -84,14 +84,14 @@ func NewUDP(addr string, in chan<- *inbound.PacketAdapter) (*UDPListener, error)
 	return rl, nil
 }
 
-func handlePacketConn(in chan<- *inbound.PacketAdapter, buf []byte, lAddr, rAddr netip.AddrPort) {
+func handlePacketConn(in chan<- *defaultinbound.PacketAdapter, buf []byte, lAddr, rAddr netip.AddrPort) {
 	target := socks5.AddrFromStdAddrPort(rAddr)
 	pkt := &packet{
 		lAddr: lAddr,
 		buf:   buf,
 	}
 	select {
-	case in <- inbound.NewPacket(target, pkt, C.TPROXY):
+	case in <- defaultinbound.NewPacket(target, pkt, C.TPROXY):
 	default:
 	}
 }

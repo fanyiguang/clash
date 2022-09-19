@@ -33,7 +33,7 @@ func getOtherInbounds(w http.ResponseWriter, r *http.Request) {
 }
 
 func addOtherInbounds(w http.ResponseWriter, r *http.Request) {
-	var params []config.OtherInbound
+	var params []config.InboundConfig
 	err := render.DecodeJSON(r.Body, &params)
 	if err != nil {
 		log.Errorln(err.Error())

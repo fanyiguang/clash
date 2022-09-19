@@ -4,24 +4,24 @@ import (
 	"encoding/json"
 	"errors"
 
-	"github.com/Dreamacro/clash/adapter/otherinbound"
+	"github.com/Dreamacro/clash/adapter/inbound"
 	C "github.com/Dreamacro/clash/constant"
 
 	"gopkg.in/yaml.v3"
 )
 
-type OtherInbound struct {
-	Name         string                    `json:"name"`
-	Type         C.InboundType             `json:"type"`
-	HttpOption   otherinbound.HttpOption   `json:"-"`
-	SocksOption  otherinbound.SocksOption  `json:"-"`
-	DirectOption otherinbound.DirectOption `json:"-"`
+type InboundConfig struct {
+	Name         string               `json:"name"`
+	Type         C.InboundType        `json:"type"`
+	HttpOption   inbound.HttpOption   `json:"-"`
+	SocksOption  inbound.SocksOption  `json:"-"`
+	DirectOption inbound.DirectOption `json:"-"`
 }
 
 // _OtherInbound 是一个辅助结构体，用来避免 json.Unmarshal 循环
-type _OtherInbound OtherInbound
+type _OtherInbound InboundConfig
 
-func (i *OtherInbound) UnmarshalJSON(b []byte) error {
+func (i *InboundConfig) UnmarshalJSON(b []byte) error {
 	err := json.Unmarshal(b, (*_OtherInbound)(i))
 	if err != nil {
 		return err
@@ -42,11 +42,11 @@ func (i *OtherInbound) UnmarshalJSON(b []byte) error {
 	return json.Unmarshal(b, v)
 }
 
-func (i *OtherInbound) UnmarshalYAML(node *yaml.Node) error {
+func (i *InboundConfig) UnmarshalYAML(node *yaml.Node) error {
 	return UnmarshalYAML(node, i)
 }
 
-func (i *OtherInbound) MarshalJSON() ([]byte, error) {
+func (i *InboundConfig) MarshalJSON() ([]byte, error) {
 	var v any
 	switch i.Type {
 	case C.HTTPInbound:

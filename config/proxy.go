@@ -10,7 +10,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-type Proxy struct {
+type ProxyConfig struct {
 	Name               string                      `yaml:"name" json:"name"`
 	Type               C.ProxyType                 `yaml:"type" json:"type"`
 	HttpOption         outbound.HttpOption         `yaml:"-" json:"-"`
@@ -22,9 +22,9 @@ type Proxy struct {
 	VmessOption        outbound.VmessOption        `yaml:"-" json:"-"`
 }
 
-type _Proxy Proxy
+type _Proxy ProxyConfig
 
-func (p *Proxy) MarshalJSON() ([]byte, error) {
+func (p *ProxyConfig) MarshalJSON() ([]byte, error) {
 	var v any
 	switch p.Type {
 	case C.ProxyTypeHttp:
@@ -45,7 +45,7 @@ func (p *Proxy) MarshalJSON() ([]byte, error) {
 	return MarshalObjects(p, v)
 }
 
-func (p *Proxy) UnmarshalJSON(b []byte) error {
+func (p *ProxyConfig) UnmarshalJSON(b []byte) error {
 	err := json.Unmarshal(b, (*_Proxy)(p))
 	if err != nil {
 		return err
@@ -74,6 +74,6 @@ func (p *Proxy) UnmarshalJSON(b []byte) error {
 	return json.Unmarshal(b, v)
 }
 
-func (p *Proxy) UnmarshalYAML(node *yaml.Node) error {
+func (p *ProxyConfig) UnmarshalYAML(node *yaml.Node) error {
 	return UnmarshalYAML(node, p)
 }

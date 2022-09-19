@@ -1,11 +1,11 @@
-package otherinbound
+package inbound
 
 import (
 	"fmt"
 	"net"
 	"strconv"
 
-	"github.com/Dreamacro/clash/adapter/inbound"
+	"github.com/Dreamacro/clash/adapter/defaultinbound"
 	C "github.com/Dreamacro/clash/constant"
 	"github.com/Dreamacro/clash/context"
 	"github.com/Dreamacro/clash/log"
@@ -17,7 +17,7 @@ type Direct struct {
 	Listener    *Listener
 	UDPListener *UDPListener
 	tcpIn       chan<- C.ConnContext
-	udpIn       chan<- *inbound.PacketAdapter
+	udpIn       chan<- *defaultinbound.PacketAdapter
 
 	cacheMeta C.Metadata // 缓存目标meta信息
 }
@@ -28,7 +28,7 @@ type DirectOption struct {
 	RedirectAddr string `json:"redirect-addr"` // 重定向地址，把从监听地址收到的数据转发到这个地址
 }
 
-func NewDirect(option DirectOption, name string, tcpIn chan<- C.ConnContext, udpIn chan<- *inbound.PacketAdapter) (*Direct, error) {
+func NewDirect(option DirectOption, name string, tcpIn chan<- C.ConnContext, udpIn chan<- *defaultinbound.PacketAdapter) (*Direct, error) {
 	addr := net.JoinHostPort(option.Listen, strconv.Itoa(option.Port))
 
 	h, p, err := net.SplitHostPort(option.RedirectAddr)
@@ -102,7 +102,7 @@ func (s *Direct) handleUDP(pc net.PacketConn, buf []byte, addr net.Addr) {
 	meta := s.cacheMeta
 	meta.NetWork = C.UDP
 
-	p := &inbound.PacketAdapter{
+	p := &defaultinbound.PacketAdapter{
 		UDPPacket: packet,
 		Meta:      &meta,
 	}

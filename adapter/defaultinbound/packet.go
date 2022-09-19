@@ -1,4 +1,4 @@
-package inbound
+package defaultinbound
 
 import (
 	C "github.com/Dreamacro/clash/constant"

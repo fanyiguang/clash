@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/Dreamacro/clash/adapter"
-	"github.com/Dreamacro/clash/adapter/inbound"
+	"github.com/Dreamacro/clash/adapter/defaultinbound"
 	"github.com/Dreamacro/clash/adapter/outboundgroup"
 	aprovider "github.com/Dreamacro/clash/adapter/provider"
 	"github.com/Dreamacro/clash/component/nat"
@@ -27,7 +27,7 @@ import (
 
 var (
 	tcpQueue  = make(chan C.ConnContext, 200)
-	udpQueue  = make(chan *inbound.PacketAdapter, 200)
+	udpQueue  = make(chan *defaultinbound.PacketAdapter, 200)
 	natTable  = nat.New()
 	rules     []C.Rule
 	proxies   = make(map[string]C.Proxy)
@@ -51,7 +51,7 @@ func TCPIn() chan<- C.ConnContext {
 }
 
 // UDPIn return fan-in udp queue
-func UDPIn() chan<- *inbound.PacketAdapter {
+func UDPIn() chan<- *defaultinbound.PacketAdapter {
 	return udpQueue
 }
 
@@ -163,7 +163,7 @@ func resolveMetadata(ctx C.PlainContext, metadata *C.Metadata) (proxy C.Proxy, r
 	return
 }
 
-func handleUDPConn(packet *inbound.PacketAdapter) {
+func handleUDPConn(packet *defaultinbound.PacketAdapter) {
 	metadata := packet.Metadata()
 	if !metadata.Valid() {
 		log.Warnln("[Metadata] not valid: %#v", metadata)

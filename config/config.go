@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/Dreamacro/clash/adapter"
-	"github.com/Dreamacro/clash/adapter/otherinbound"
+	"github.com/Dreamacro/clash/adapter/inbound"
 	"github.com/Dreamacro/clash/adapter/outbound"
 	"github.com/Dreamacro/clash/adapter/outboundgroup"
 	"github.com/Dreamacro/clash/adapter/provider"
@@ -149,10 +149,10 @@ type RawConfig struct {
 	DNS           RawDNS                    `yaml:"dns"`
 	Experimental  Experimental              `yaml:"experimental"`
 	Profile       Profile                   `yaml:"profile"`
-	Proxy         []Proxy                   `yaml:"proxies"`
+	Proxy         []ProxyConfig             `yaml:"proxies"`
 	ProxyGroup    []map[string]any          `yaml:"proxy-groups"`
 	Rule          []string                  `yaml:"rules"`
-	Inbounds      []OtherInbound            `yaml:"inbounds"`
+	Inbounds      []InboundConfig           `yaml:"inbounds"`
 }
 
 // Parse config
@@ -175,7 +175,7 @@ func UnmarshalRawConfig(buf []byte) (*RawConfig, error) {
 		LogLevel:       log.INFO,
 		Hosts:          map[string]string{},
 		Rule:           []string{},
-		Proxy:          []Proxy{},
+		Proxy:          []ProxyConfig{},
 		ProxyGroup:     []map[string]any{},
 		DNS: RawDNS{
 			Enable:      false,
@@ -252,7 +252,7 @@ func ParseRawConfig(rawCfg *RawConfig) (*Config, error) {
 	return config, nil
 }
 
-func ParseInbounds(cfg []OtherInbound) (map[string]C.OtherInbound, error) {
+func ParseInbounds(cfg []InboundConfig) (map[string]C.OtherInbound, error) {
 	var (
 		result = make(map[string]C.OtherInbound)
 		err    error
@@ -262,17 +262,24 @@ func ParseInbounds(cfg []OtherInbound) (map[string]C.OtherInbound, error) {
 		var i C.OtherInbound
 		switch c.Type {
 		case C.HTTPInbound:
-			i, err = otherinbound.NewHttp(c.HttpOption, c.Name, T.TCPIn())
+			i, err = inbound.NewHttp(c.HttpOption, c.Name, T.TCPIn())
 		case C.SOCKSInbound:
-			i, err = otherinbound.NewSocks(c.SocksOption, c.Name, T.TCPIn(), T.UDPIn())
+			i, err = inbound.NewSocks(c.SocksOption, c.Name, T.TCPIn(), T.UDPIn())
 		case C.DIRECTInbound:
-			i, err = otherinbound.NewDirect(c.DirectOption, c.Name, T.TCPIn(), T.UDPIn())
+			i, err = inbound.NewDirect(c.DirectOption, c.Name, T.TCPIn(), T.UDPIn())
 		default:
 			err = errors.New("unknown inboundType: " + c.Type.String())
 		}
 		if err != nil {
 			break
 		}
+
+		if _, ok := result[i.Name()]; ok {
+			i.Close()
+			err = fmt.Errorf("duplicate inbound name %s", i.Name())
+			break
+		}
+
 		result[i.Name()] = i
 	}
 	if err != nil {
@@ -688,7 +695,7 @@ func parseAuthentication(rawRecords []string) []auth.AuthUser {
 	return users
 }
 
-func ParseProxy(p Proxy) (C.Proxy, error) {
+func ParseProxy(p ProxyConfig) (C.Proxy, error) {
 	var (
 		proxy C.ProxyAdapter
 		err   error
@@ -721,7 +728,7 @@ func ParseProxy(p Proxy) (C.Proxy, error) {
 }
 
 func parseProxyFromBytes(data []byte) (C.Proxy, error) {
-	var c Proxy
+	var c ProxyConfig
 	if err := json.Unmarshal(data, &c); err != nil {
 		return nil, err
 	}

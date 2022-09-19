@@ -27,7 +27,7 @@ func getOutbounds(w http.ResponseWriter, r *http.Request) {
 }
 
 func addOutbounds(w http.ResponseWriter, r *http.Request) {
-	var params []config.Proxy
+	var params []config.ProxyConfig
 
 	err := render.DecodeJSON(r.Body, &params)
 	if err != nil {

@@ -4,7 +4,7 @@ import (
 	"io"
 	"net"
 
-	"github.com/Dreamacro/clash/adapter/inbound"
+	"github.com/Dreamacro/clash/adapter/defaultinbound"
 	N "github.com/Dreamacro/clash/common/net"
 	C "github.com/Dreamacro/clash/constant"
 	authStore "github.com/Dreamacro/clash/listener/auth"
@@ -85,7 +85,7 @@ func HandleSocks4(conn net.Conn, in chan<- C.ConnContext) {
 		conn.Close()
 		return
 	}
-	in <- inbound.NewSocket(socks5.ParseAddr(addr), conn, C.SOCKS4)
+	in <- defaultinbound.NewSocket(socks5.ParseAddr(addr), conn, C.SOCKS4)
 }
 
 func HandleSocks5(conn net.Conn, in chan<- C.ConnContext) {
@@ -99,5 +99,5 @@ func HandleSocks5(conn net.Conn, in chan<- C.ConnContext) {
 		io.Copy(io.Discard, conn)
 		return
 	}
-	in <- inbound.NewSocket(target, conn, C.SOCKS5)
+	in <- defaultinbound.NewSocket(target, conn, C.SOCKS5)
 }

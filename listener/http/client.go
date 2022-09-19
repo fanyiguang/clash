@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/Dreamacro/clash/adapter/inbound"
+	"github.com/Dreamacro/clash/adapter/defaultinbound"
 	C "github.com/Dreamacro/clash/constant"
 	"github.com/Dreamacro/clash/transport/socks5"
 )
@@ -32,7 +32,7 @@ func newClient(source net.Addr, in chan<- C.ConnContext) *http.Client {
 
 				left, right := net.Pipe()
 
-				in <- inbound.NewHTTP(dstAddr, source, right)
+				in <- defaultinbound.NewHTTP(dstAddr, source, right)
 
 				return left, nil
 			},

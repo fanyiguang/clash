@@ -3,7 +3,7 @@ package redir
 import (
 	"net"
 
-	"github.com/Dreamacro/clash/adapter/inbound"
+	"github.com/Dreamacro/clash/adapter/defaultinbound"
 	C "github.com/Dreamacro/clash/constant"
 )
 
@@ -62,5 +62,5 @@ func handleRedir(conn net.Conn, in chan<- C.ConnContext) {
 		return
 	}
 	conn.(*net.TCPConn).SetKeepAlive(true)
-	in <- inbound.NewSocket(target, conn, C.REDIR)
+	in <- defaultinbound.NewSocket(target, conn, C.REDIR)
 }

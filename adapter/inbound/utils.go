@@ -1,4 +1,4 @@
-package otherinbound
+package inbound
 
 import (
 	"net"

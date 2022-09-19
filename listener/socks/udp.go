@@ -3,7 +3,7 @@ package socks
 import (
 	"net"
 
-	"github.com/Dreamacro/clash/adapter/inbound"
+	"github.com/Dreamacro/clash/adapter/defaultinbound"
 	"github.com/Dreamacro/clash/common/pool"
 	"github.com/Dreamacro/clash/common/sockopt"
 	C "github.com/Dreamacro/clash/constant"
@@ -33,7 +33,7 @@ func (l *UDPListener) Close() error {
 	return l.packetConn.Close()
 }
 
-func NewUDP(addr string, in chan<- *inbound.PacketAdapter) (*UDPListener, error) {
+func NewUDP(addr string, in chan<- *defaultinbound.PacketAdapter) (*UDPListener, error) {
 	l, err := net.ListenPacket("udp", addr)
 	if err != nil {
 		return nil, err
@@ -65,7 +65,7 @@ func NewUDP(addr string, in chan<- *inbound.PacketAdapter) (*UDPListener, error)
 	return sl, nil
 }
 
-func handleSocksUDP(pc net.PacketConn, in chan<- *inbound.PacketAdapter, buf []byte, addr net.Addr) {
+func handleSocksUDP(pc net.PacketConn, in chan<- *defaultinbound.PacketAdapter, buf []byte, addr net.Addr) {
 	target, payload, err := socks5.DecodeUDPPacket(buf)
 	if err != nil {
 		// Unresolved UDP packet, return buffer to the pool
@@ -79,7 +79,7 @@ func handleSocksUDP(pc net.PacketConn, in chan<- *inbound.PacketAdapter, buf []b
 		bufRef:  buf,
 	}
 	select {
-	case in <- inbound.NewPacket(target, packet, C.SOCKS5):
+	case in <- defaultinbound.NewPacket(target, packet, C.SOCKS5):
 	default:
 	}
 }

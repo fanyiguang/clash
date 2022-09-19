@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/Dreamacro/clash/adapter/inbound"
+	"github.com/Dreamacro/clash/adapter/defaultinbound"
 	"github.com/Dreamacro/clash/config"
 	C "github.com/Dreamacro/clash/constant"
 	"github.com/Dreamacro/clash/listener/http"
@@ -101,7 +101,7 @@ func ReCreateHTTP(port int, tcpIn chan<- C.ConnContext) {
 	log.Infoln("HTTP proxy listening at: %s", httpListener.Address())
 }
 
-func ReCreateSocks(port int, tcpIn chan<- C.ConnContext, udpIn chan<- *inbound.PacketAdapter) {
+func ReCreateSocks(port int, tcpIn chan<- C.ConnContext, udpIn chan<- *defaultinbound.PacketAdapter) {
 	socksMux.Lock()
 	defer socksMux.Unlock()
 
@@ -160,7 +160,7 @@ func ReCreateSocks(port int, tcpIn chan<- C.ConnContext, udpIn chan<- *inbound.P
 	log.Infoln("SOCKS proxy listening at: %s", socksListener.Address())
 }
 
-func ReCreateRedir(port int, tcpIn chan<- C.ConnContext, udpIn chan<- *inbound.PacketAdapter) {
+func ReCreateRedir(port int, tcpIn chan<- C.ConnContext, udpIn chan<- *defaultinbound.PacketAdapter) {
 	redirMux.Lock()
 	defer redirMux.Unlock()
 
@@ -206,7 +206,7 @@ func ReCreateRedir(port int, tcpIn chan<- C.ConnContext, udpIn chan<- *inbound.P
 	log.Infoln("Redirect proxy listening at: %s", redirListener.Address())
 }
 
-func ReCreateTProxy(port int, tcpIn chan<- C.ConnContext, udpIn chan<- *inbound.PacketAdapter) {
+func ReCreateTProxy(port int, tcpIn chan<- C.ConnContext, udpIn chan<- *defaultinbound.PacketAdapter) {
 	tproxyMux.Lock()
 	defer tproxyMux.Unlock()
 
@@ -252,7 +252,7 @@ func ReCreateTProxy(port int, tcpIn chan<- C.ConnContext, udpIn chan<- *inbound.
 	log.Infoln("TProxy server listening at: %s", tproxyListener.Address())
 }
 
-func ReCreateMixed(port int, tcpIn chan<- C.ConnContext, udpIn chan<- *inbound.PacketAdapter) {
+func ReCreateMixed(port int, tcpIn chan<- C.ConnContext, udpIn chan<- *defaultinbound.PacketAdapter) {
 	mixedMux.Lock()
 	defer mixedMux.Unlock()
 
@@ -313,7 +313,7 @@ func SetOtherInbounds(inbounds map[string]C.OtherInbound) {
 	otherInbounds = inbounds
 }
 
-func AddOtherInbounds(params []config.OtherInbound) (err error) {
+func AddOtherInbounds(params []config.InboundConfig) (err error) {
 	otherInboundsMux.Lock()
 	defer otherInboundsMux.Unlock()
 	check, err := config.ParseInbounds(params)
