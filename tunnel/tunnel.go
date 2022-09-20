@@ -445,6 +445,10 @@ func ReNewGlobalOutbound() {
 		}
 	}
 
+	if len(ps) == 0 {
+		return
+	}
+
 	hc := aprovider.NewHealthCheck(ps, "", 0, true)
 	pd, _ := aprovider.NewCompatibleProvider(aprovider.ReservedName, ps, hc)
 

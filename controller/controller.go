@@ -7,7 +7,6 @@ import (
 	"github.com/Dreamacro/clash/config"
 	C "github.com/Dreamacro/clash/constant"
 	"github.com/Dreamacro/clash/hub/route"
-
 	P "github.com/Dreamacro/clash/listener"
 	T "github.com/Dreamacro/clash/tunnel"
 )
@@ -36,9 +35,12 @@ func GetProxies() map[string]C.Proxy {
 func AddProxies(params []config.ProxyConfig) error {
 	var ps []C.Proxy
 	for _, param := range params {
-		if proxy, err := config.ParseProxy(param); err != nil {
-			ps = append(ps, proxy)
+		proxy, err := config.ParseProxy(param)
+		if err != nil {
+			return err
 		}
+		ps = append(ps, proxy)
+
 	}
 
 	return T.AddOutbounds(ps)
