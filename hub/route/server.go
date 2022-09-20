@@ -75,6 +75,8 @@ func Start(addr string, secret string) {
 		r.Mount("/outboundgroups", outboundGroups())
 	})
 
+	// 未配置UI路径就使用内置UI
+
 	if uiPath != "" {
 		r.Group(func(r chi.Router) {
 			fs := http.StripPrefix("/ui", http.FileServer(http.Dir(uiPath)))
@@ -83,6 +85,8 @@ func Start(addr string, secret string) {
 				fs.ServeHTTP(w, r)
 			})
 		})
+	} else {
+		r.Group(UI)
 	}
 
 	l, err := net.Listen("tcp", addr)

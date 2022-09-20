@@ -138,3 +138,9 @@ lint:
 
 clean:
 	rm $(BINDIR)/*
+
+webui-getdep:
+	cd web-ui && pnpm install
+
+build-webui:
+	cd web-ui && pnpm build --emptyOutDir --outDir ../hub/route/web-ui
