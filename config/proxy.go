@@ -20,6 +20,7 @@ type ProxyConfig struct {
 	Socks5Option       outbound.Socks5Option       `yaml:"-" json:"-"`
 	TrojanOption       outbound.TrojanOption       `yaml:"-" json:"-"`
 	VmessOption        outbound.VmessOption        `yaml:"-" json:"-"`
+	SshOption          outbound.SshOption          `yaml:"-" json:"-"`
 }
 
 type _Proxy ProxyConfig
@@ -41,6 +42,8 @@ func (p *ProxyConfig) MarshalJSON() ([]byte, error) {
 		v = &p.TrojanOption
 	case C.ProxyTypeVmess:
 		v = &p.VmessOption
+	case C.ProxyTypeSsh:
+		v = &p.SshOption
 	default:
 		return nil, errors.New("unknown proxy type")
 	}
@@ -72,6 +75,8 @@ func (p *ProxyConfig) UnmarshalJSON(b []byte) error {
 			Path:   []string{"/"},
 		}
 		v = &p.VmessOption
+	case C.ProxyTypeSsh:
+		v = &p.SshOption
 	default:
 		return errors.New("unknown proxy type")
 	}

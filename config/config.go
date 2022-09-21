@@ -690,6 +690,8 @@ func ParseProxy(p ProxyConfig) (C.Proxy, error) {
 		proxy, err = outbound.NewSnell(p.SnellOption)
 	case C.ProxyTypeTrojan:
 		proxy, err = outbound.NewTrojan(p.TrojanOption)
+	case C.ProxyTypeSsh:
+		proxy, err = outbound.NewSsh(p.SshOption)
 	default:
 		return nil, fmt.Errorf("unsupport proxy type: %s", p.Type)
 	}

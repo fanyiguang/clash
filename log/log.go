@@ -2,6 +2,7 @@ package log
 
 import (
 	"fmt"
+	"io"
 	"os"
 
 	"github.com/Dreamacro/clash/common/observable"
@@ -72,6 +73,10 @@ func Level() LogLevel {
 
 func SetLevel(newLevel LogLevel) {
 	level = newLevel
+}
+
+func SetOutput(out io.Writer) {
+	log.SetOutput(out)
 }
 
 func print(data Event) {

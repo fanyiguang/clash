@@ -4,12 +4,14 @@ import (
 	"io"
 	"net"
 	"strconv"
+	"strings"
 
 	"github.com/Dreamacro/clash/adapter/defaultinbound"
 	N "github.com/Dreamacro/clash/common/net"
 	"github.com/Dreamacro/clash/common/pool"
 	"github.com/Dreamacro/clash/component/auth"
 	C "github.com/Dreamacro/clash/constant"
+	"github.com/Dreamacro/clash/context"
 	"github.com/Dreamacro/clash/log"
 	"github.com/Dreamacro/clash/transport/socks4"
 	"github.com/Dreamacro/clash/transport/socks5"
@@ -39,7 +41,7 @@ func (s *Socks) run() error {
 
 	udpListener, err := NewUDP(s.addr, s.handleSocksUDP)
 	if err != nil {
-		tcpListener.Close()
+		_ = tcpListener.Close()
 		return err
 	}
 
@@ -50,8 +52,8 @@ func (s *Socks) run() error {
 }
 
 func (s *Socks) Close() {
-	s.Listener.Close()
-	s.UDPListener.Close()
+	_ = s.Listener.Close()
+	_ = s.UDPListener.Close()
 	log.Infoln("SOCKS OtherInbound %s closed", s.Base.inboundName)
 }
 
@@ -60,7 +62,7 @@ func (s *Socks) handleSocks(conn net.Conn) {
 	bufConn := N.NewBufferedConn(conn)
 	head, err := bufConn.Peek(1)
 	if err != nil {
-		conn.Close()
+		_ = conn.Close()
 		return
 	}
 
@@ -70,26 +72,24 @@ func (s *Socks) handleSocks(conn net.Conn) {
 	case socks5.Version:
 		s.HandleSocks5(bufConn)
 	default:
-		conn.Close()
+		_ = conn.Close()
 	}
 }
 
 func (s *Socks) HandleSocks4(conn net.Conn) {
 	addr, _, err := socks4.ServerHandshake(conn, s.Authenticator)
 	if err != nil {
-		conn.Close()
+		_ = conn.Close()
 		return
 	}
-	connContext := defaultinbound.NewSocket(socks5.ParseAddr(addr), conn, C.SOCKS4)
-	connContext.Metadata().Inbound = s.inboundName
-
+	connContext := NewSocket(socks5.ParseAddr(addr), conn, C.SOCKS4, s.newMetadata())
 	s.tcpIn <- connContext
 }
 
 func (s *Socks) HandleSocks5(conn net.Conn) {
 	target, command, err := socks5.ServerHandshake(conn, s.Authenticator)
 	if err != nil {
-		conn.Close()
+		_ = conn.Close()
 		return
 	}
 	if command == socks5.CmdUDPAssociate {
@@ -98,8 +98,7 @@ func (s *Socks) HandleSocks5(conn net.Conn) {
 		return
 	}
 
-	connContext := defaultinbound.NewSocket(target, conn, C.SOCKS5)
-	connContext.Metadata().Inbound = s.inboundName
+	connContext := NewSocket(target, conn, C.SOCKS5, s.newMetadata())
 	s.tcpIn <- connContext
 }
 
@@ -117,8 +116,7 @@ func (s *Socks) handleSocksUDP(pc net.PacketConn, buf []byte, addr net.Addr) {
 		bufRef:  buf,
 	}
 
-	packetAdapter := defaultinbound.NewPacket(target, packet, C.SOCKS5)
-	packetAdapter.Metadata().Inbound = s.inboundName
+	packetAdapter := NewPacket(target, packet, C.SOCKS5, s.newMetadata())
 
 	select {
 	case s.udpIn <- packetAdapter:
@@ -126,12 +124,28 @@ func (s *Socks) handleSocksUDP(pc net.PacketConn, buf []byte, addr net.Addr) {
 	}
 }
 
+// NewPacket is PacketAdapter generator
+func NewPacket(target socks5.Addr, packet C.UDPPacket, source C.Type, meta *C.Metadata) *defaultinbound.PacketAdapter {
+	parseSocksAddr(target, meta)
+	meta.NetWork = C.UDP
+	meta.Type = source
+	if ip, port, err := parseAddr(packet.LocalAddr().String()); err == nil {
+		meta.SrcIP = ip
+		meta.SrcPort = port
+	}
+
+	return &defaultinbound.PacketAdapter{
+		UDPPacket: packet,
+		Meta:      meta,
+	}
+}
+
 func NewSocks(option SocksOption, name string, tcpIn chan<- C.ConnContext, udpIn chan<- *defaultinbound.PacketAdapter) (*Socks, error) {
 	addr := net.JoinHostPort(option.Listen, strconv.Itoa(option.Port))
 
-	var auth auth.Authenticator
+	var newAuth auth.Authenticator
 	if len(option.Users) > 0 {
-		auth = NewAuthenticator(option.Users)
+		newAuth = NewAuthenticator(option.Users)
 	}
 	s := &Socks{
 		Base: Base{
@@ -141,13 +155,45 @@ func NewSocks(option SocksOption, name string, tcpIn chan<- C.ConnContext, udpIn
 		},
 		tcpIn:         tcpIn,
 		udpIn:         udpIn,
-		Authenticator: auth,
+		Authenticator: newAuth,
 	}
 
 	if err := s.run(); err != nil {
 		return nil, err
 	}
 	return s, nil
+}
+
+// NewSocket receive TCP inbound and return ConnContext
+func NewSocket(target socks5.Addr, conn net.Conn, source C.Type, meta *C.Metadata) *context.ConnContext {
+	parseSocksAddr(target, meta)
+	meta.NetWork = C.TCP
+	meta.Type = source
+	if ip, port, err := parseAddr(conn.RemoteAddr().String()); err == nil {
+		meta.SrcIP = ip
+		meta.SrcPort = port
+	}
+
+	return context.NewConnContext(conn, meta)
+}
+
+func parseSocksAddr(target socks5.Addr, meta *C.Metadata) *C.Metadata {
+	switch target[0] {
+	case socks5.AtypDomainName:
+		// trim for FQDN
+		meta.Host = strings.TrimRight(string(target[2:2+target[1]]), ".")
+		meta.DstPort = strconv.Itoa((int(target[2+target[1]]) << 8) | int(target[2+target[1]+1]))
+	case socks5.AtypIPv4:
+		ip := net.IP(target[1 : 1+net.IPv4len])
+		meta.DstIP = ip
+		meta.DstPort = strconv.Itoa((int(target[1+net.IPv4len]) << 8) | int(target[1+net.IPv4len+1]))
+	case socks5.AtypIPv6:
+		ip := net.IP(target[1 : 1+net.IPv6len])
+		meta.DstIP = ip
+		meta.DstPort = strconv.Itoa((int(target[1+net.IPv6len]) << 8) | int(target[1+net.IPv6len+1]))
+	}
+
+	return meta
 }
 
 type UDPListener struct {

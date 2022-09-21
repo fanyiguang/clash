@@ -19,7 +19,9 @@ type Direct struct {
 	tcpIn       chan<- C.ConnContext
 	udpIn       chan<- *defaultinbound.PacketAdapter
 
-	cacheMeta C.Metadata // 缓存目标meta信息
+	dstPort string
+	host    string
+	destIP  net.IP
 }
 
 type DirectOption struct {
@@ -36,28 +38,17 @@ func NewDirect(option DirectOption, name string, tcpIn chan<- C.ConnContext, udp
 		return nil, fmt.Errorf("address error:%w", err)
 	}
 
-	// 创建可复用的meta信息
-	meta := C.Metadata{
-		NetWork: 0,
-		Type:    C.REDIR,
-		DstIP:   nil,
-		DstPort: p,
-		Host:    h,
-		Inbound: name,
-	}
-	if ip := net.ParseIP(h); ip != nil {
-		meta.DstIP = ip
-	}
-
 	s := &Direct{
 		Base: Base{
 			inboundName: name,
 			inboundType: C.DIRECTInbound,
 			addr:        addr,
 		},
-		tcpIn:     tcpIn,
-		udpIn:     udpIn,
-		cacheMeta: meta,
+		tcpIn:   tcpIn,
+		udpIn:   udpIn,
+		host:    h,
+		dstPort: p,
+		destIP:  net.ParseIP(h),
 	}
 
 	if err := s.run(); err != nil {
@@ -67,7 +58,7 @@ func NewDirect(option DirectOption, name string, tcpIn chan<- C.ConnContext, udp
 }
 
 func (s *Direct) handleTCP(conn net.Conn) {
-	conn.(*net.TCPConn).SetKeepAlive(true)
+	_ = conn.(*net.TCPConn).SetKeepAlive(true)
 	s.tcpIn <- s.NewRedirectTCP(conn)
 }
 
@@ -82,16 +73,18 @@ func parseAddr(addr string) (net.IP, string, error) {
 }
 
 func (s *Direct) NewRedirectTCP(conn net.Conn) *context.ConnContext {
-	meta := s.cacheMeta
-
+	meta := s.newMetadata()
+	meta.DstPort = s.dstPort
+	meta.Host = s.host
+	meta.DstIP = s.destIP
+	meta.Type = C.REDIR
 	meta.NetWork = C.TCP
-	meta.Inbound = C.Name
 
 	if ip, port, err := parseAddr(conn.RemoteAddr().String()); err == nil {
 		meta.SrcIP = ip
 		meta.SrcPort = port
 	}
-	return context.NewConnContext(conn, &meta)
+	return context.NewConnContext(conn, meta)
 }
 
 func (s *Direct) handleUDP(pc net.PacketConn, buf []byte, addr net.Addr) {
@@ -100,12 +93,16 @@ func (s *Direct) handleUDP(pc net.PacketConn, buf []byte, addr net.Addr) {
 		rAddr:  addr,
 		bufRef: buf,
 	}
-	meta := s.cacheMeta
+	meta := s.newMetadata()
+	meta.DstPort = s.dstPort
+	meta.Host = s.host
+	meta.DstIP = s.destIP
+	meta.Type = C.REDIR
 	meta.NetWork = C.UDP
 
 	p := &defaultinbound.PacketAdapter{
 		UDPPacket: packet,
-		Meta:      &meta,
+		Meta:      meta,
 	}
 	select {
 	case s.udpIn <- p:
@@ -122,7 +119,7 @@ func (s *Direct) run() error {
 
 	udpListener, err := NewUDP(s.addr, s.handleUDP)
 	if err != nil {
-		tcpListener.Close()
+		_ = tcpListener.Close()
 		return err
 	}
 
@@ -134,7 +131,7 @@ func (s *Direct) run() error {
 
 // Close 关闭监听
 func (s *Direct) Close() {
-	s.Listener.Close()
-	s.UDPListener.Close()
+	_ = s.Listener.Close()
+	_ = s.UDPListener.Close()
 	log.Infoln("Direct OtherInbound %s closed", s.Base.inboundName)
 }

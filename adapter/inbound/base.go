@@ -20,6 +20,8 @@ func (b Base) RawAddress() string {
 	return b.addr
 }
 
-func (b Base) NewMetadata() {
-
+func (b Base) newMetadata() *C.Metadata {
+	return &C.Metadata{
+		Inbound: b.inboundName,
+	}
 }

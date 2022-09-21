@@ -39,9 +39,13 @@ func addOutbounds(w http.ResponseWriter, r *http.Request) {
 
 	var ps []C.Proxy
 	for _, param := range params {
-		if proxy, err := config.ParseProxy(param); err != nil {
-			ps = append(ps, proxy)
+		proxy, err := config.ParseProxy(param)
+		if err != nil {
+			render.Status(r, http.StatusBadRequest)
+			render.JSON(w, r, newError(err.Error()))
+			return
 		}
+		ps = append(ps, proxy)
 	}
 
 	err = T.AddOutbounds(ps)

@@ -6,7 +6,6 @@ import (
 	"github.com/Dreamacro/clash/common/pool"
 	"github.com/Dreamacro/clash/common/sockopt"
 	"github.com/Dreamacro/clash/component/auth"
-	C "github.com/Dreamacro/clash/constant"
 	"github.com/Dreamacro/clash/log"
 )
 
@@ -105,14 +104,4 @@ func NewAuthenticator(users []User) auth.Authenticator {
 	}
 
 	return auth.NewAuthenticator(authUsers)
-}
-
-type PacketAdapter struct {
-	C.UDPPacket
-	metadata *C.Metadata
-}
-
-// Metadata returns destination metadata
-func (s *PacketAdapter) Metadata() *C.Metadata {
-	return s.metadata
 }

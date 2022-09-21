@@ -3,10 +3,16 @@ package controller
 // 增删改查 inbounds,outbounds,outbound-groups,rules
 
 import (
+	"context"
+	"io"
+	"time"
+
 	"github.com/Dreamacro/clash/adapter/outboundgroup"
 	"github.com/Dreamacro/clash/config"
 	C "github.com/Dreamacro/clash/constant"
 	"github.com/Dreamacro/clash/hub/route"
+	"github.com/Dreamacro/clash/log"
+
 	P "github.com/Dreamacro/clash/listener"
 	T "github.com/Dreamacro/clash/tunnel"
 )
@@ -56,6 +62,11 @@ func AddProxyGroups(groups []outboundgroup.GroupCommonOption) error {
 	return T.AddOutboundGroups(groups)
 }
 
+// DeleteProxyGroups 删除outbound-group
+func DeleteProxyGroups(groupNames []string) {
+	T.DeleteOutbounds(groupNames)
+}
+
 // GetRules 获取全部规则
 func GetRules() []C.Rule {
 	return T.Rules()
@@ -79,4 +90,16 @@ func StartApi(addr, secret string) error {
 // StopApi 关闭
 func StopApi() {
 	route.Shutdown()
+}
+
+// SetLog 设置日志输出
+func SetLog(out io.Writer, level log.LogLevel) {
+	log.SetOutput(out)
+	log.SetLevel(level)
+}
+
+func SpeedUrl(proxyName string, url string, timeout time.Duration) (uint16, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	return T.Proxies()[proxyName].URLTest(ctx, url)
 }

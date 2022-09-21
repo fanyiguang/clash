@@ -22,6 +22,7 @@ const (
 	Http
 	Vmess
 	Trojan
+	Ssh
 
 	Relay
 	Selector
@@ -165,10 +166,11 @@ const (
 	ProxyTypeSocks5
 	ProxyTypeTrojan
 	ProxyTypeVmess
+	ProxyTypeSsh
 )
 
 func (t ProxyType) String() string {
-	return [...]string{"direct", "http", "reject", "ss", "ssr", "snell", "socks5", "trojan", "vmess"}[t]
+	return [...]string{"direct", "http", "reject", "ss", "ssr", "snell", "socks5", "trojan", "vmess", "ssh"}[t]
 }
 
 func (t *ProxyType) FromString(kind string) ProxyType {
@@ -182,6 +184,7 @@ func (t *ProxyType) FromString(kind string) ProxyType {
 		"socks5": ProxyTypeSocks5,
 		"trojan": ProxyTypeTrojan,
 		"vmess":  ProxyTypeVmess,
+		"ssh":    ProxyTypeSsh,
 	}[kind]
 }
 
@@ -224,6 +227,8 @@ func (at AdapterType) String() string {
 		return "Snell"
 	case Socks5:
 		return "Socks5"
+	case Ssh:
+		return "Ssh"
 	case Http:
 		return "Http"
 	case Vmess:

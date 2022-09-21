@@ -2,7 +2,7 @@ package inbound
 
 import (
 	"bufio"
-	"context"
+	sysContext "context"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -13,11 +13,11 @@ import (
 	"time"
 	_ "unsafe" // for go:linkname
 
-	"github.com/Dreamacro/clash/adapter/defaultinbound"
 	"github.com/Dreamacro/clash/common/cache"
 	N "github.com/Dreamacro/clash/common/net"
 	"github.com/Dreamacro/clash/component/auth"
 	C "github.com/Dreamacro/clash/constant"
+	"github.com/Dreamacro/clash/context"
 	"github.com/Dreamacro/clash/log"
 	"github.com/Dreamacro/clash/transport/socks5"
 )
@@ -37,7 +37,7 @@ type Http struct {
 }
 
 func (h *Http) Close() {
-	h.Listener.Close()
+	_ = h.Listener.Close()
 	log.Infoln("HTTP OtherInbound %s closed", h.Base.inboundName)
 }
 
@@ -52,7 +52,7 @@ func (h *Http) run() error {
 }
 
 func (h *Http) handleConn(c net.Conn) {
-	client := newClient(c.RemoteAddr(), h.TcpIn)
+	client := newClient(c.RemoteAddr(), h.newMetadata(), h.TcpIn)
 	defer client.CloseIdleConnections()
 
 	conn := N.NewBufferedConn(c)
@@ -85,7 +85,7 @@ func (h *Http) handleConn(c net.Conn) {
 					break // close connection
 				}
 
-				h.TcpIn <- defaultinbound.NewHTTPS(request, conn)
+				h.TcpIn <- newHTTPS(request, conn, h.newMetadata())
 
 				return // hijack connection
 			}
@@ -98,7 +98,7 @@ func (h *Http) handleConn(c net.Conn) {
 			request.RequestURI = ""
 
 			if isUpgradeRequest(request) {
-				handleUpgrade(conn, request, h.TcpIn)
+				handleUpgrade(conn, request, h.newMetadata(), h.TcpIn)
 
 				return // hijack connection
 			}
@@ -132,17 +132,60 @@ func (h *Http) handleConn(c net.Conn) {
 		}
 	}
 
-	conn.Close()
+	_ = conn.Close()
+}
+
+func newHTTP(target socks5.Addr, source net.Addr, conn net.Conn, meta *C.Metadata) *context.ConnContext {
+	metadata := parseSocksAddr(target, meta)
+	metadata.NetWork = C.TCP
+	metadata.Type = C.HTTP
+	if ip, port, err := parseAddr(source.String()); err == nil {
+		metadata.SrcIP = ip
+		metadata.SrcPort = port
+	}
+	return context.NewConnContext(conn, metadata)
+}
+
+// NewHTTPS receive CONNECT request and return ConnContext
+func newHTTPS(request *http.Request, conn net.Conn, meta *C.Metadata) *context.ConnContext {
+	parseHTTPAddr(request, meta)
+	meta.Type = C.HTTPCONNECT
+	if ip, port, err := parseAddr(conn.RemoteAddr().String()); err == nil {
+		meta.SrcIP = ip
+		meta.SrcPort = port
+	}
+	return context.NewConnContext(conn, meta)
+}
+
+// parseHTTPAddr 从请求中解析出目标地址 Copy from default inbound
+func parseHTTPAddr(request *http.Request, meta *C.Metadata) {
+	host := request.URL.Hostname()
+	port := request.URL.Port()
+	if port == "" {
+		port = "80"
+	}
+
+	// trim FQDN (#737)
+	host = strings.TrimRight(host, ".")
+
+	meta.NetWork = C.TCP
+	meta.Host = host
+	meta.DstIP = nil
+	meta.DstPort = port
+
+	if ip := net.ParseIP(host); ip != nil {
+		meta.DstIP = ip
+	}
 }
 
 func NewHttp(option HttpOption, name string, in chan<- C.ConnContext) (*Http, error) {
 	addr := net.JoinHostPort(option.Listen, strconv.Itoa(option.Port))
 
 	var c *cache.LruCache
-	var auth auth.Authenticator
+	var newAuth auth.Authenticator
 	if len(option.Users) > 0 {
 		c = cache.New(cache.WithAge(30))
-		auth = NewAuthenticator(option.Users)
+		newAuth = NewAuthenticator(option.Users)
 	}
 
 	h := &Http{
@@ -153,7 +196,7 @@ func NewHttp(option HttpOption, name string, in chan<- C.ConnContext) (*Http, er
 		},
 		TcpIn:         in,
 		Cache:         c,
-		Authenticator: auth,
+		Authenticator: newAuth,
 	}
 	if err := h.run(); err != nil {
 		return nil, err
@@ -164,7 +207,7 @@ func NewHttp(option HttpOption, name string, in chan<- C.ConnContext) (*Http, er
 //go:linkname ReadRequest net/http.readRequest
 func ReadRequest(b *bufio.Reader) (req *http.Request, err error)
 
-func newClient(source net.Addr, in chan<- C.ConnContext) *http.Client {
+func newClient(source net.Addr, meta *C.Metadata, in chan<- C.ConnContext) *http.Client {
 	return &http.Client{
 		Transport: &http.Transport{
 			// from http.DefaultTransport
@@ -172,7 +215,7 @@ func newClient(source net.Addr, in chan<- C.ConnContext) *http.Client {
 			IdleConnTimeout:       90 * time.Second,
 			TLSHandshakeTimeout:   10 * time.Second,
 			ExpectContinueTimeout: 1 * time.Second,
-			DialContext: func(context context.Context, network, address string) (net.Conn, error) {
+			DialContext: func(context sysContext.Context, network, address string) (net.Conn, error) {
 				if network != "tcp" && network != "tcp4" && network != "tcp6" {
 					return nil, errors.New("unsupported network " + network)
 				}
@@ -184,7 +227,7 @@ func newClient(source net.Addr, in chan<- C.ConnContext) *http.Client {
 
 				left, right := net.Pipe()
 
-				in <- defaultinbound.NewHTTP(dstAddr, source, right)
+				in <- newHTTP(dstAddr, source, right, meta)
 
 				return left, nil
 			},
@@ -314,7 +357,7 @@ func isUpgradeRequest(req *http.Request) bool {
 	return false
 }
 
-func handleUpgrade(conn net.Conn, request *http.Request, in chan<- C.ConnContext) {
+func handleUpgrade(conn net.Conn, request *http.Request, meta *C.Metadata, in chan<- C.ConnContext) {
 	defer conn.Close()
 
 	removeProxyHeaders(request.Header)
@@ -332,7 +375,7 @@ func handleUpgrade(conn net.Conn, request *http.Request, in chan<- C.ConnContext
 
 	left, right := net.Pipe()
 
-	in <- defaultinbound.NewHTTP(dstAddr, conn.RemoteAddr(), right)
+	in <- newHTTP(dstAddr, conn.RemoteAddr(), right, meta)
 
 	bufferedLeft := N.NewBufferedConn(left)
 	defer bufferedLeft.Close()
