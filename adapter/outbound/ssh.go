@@ -12,16 +12,14 @@ import (
 	"github.com/Dreamacro/clash/component/dialer"
 	C "github.com/Dreamacro/clash/constant"
 	"github.com/Dreamacro/clash/log"
-	"go.uber.org/atomic"
 	"golang.org/x/crypto/ssh"
 )
 
 type Ssh struct {
 	*Base
-	client    *ssh.Client
-	cfg       *ssh.ClientConfig
-	connected *atomic.Bool
-	mu        sync.Mutex
+	cfg    *ssh.ClientConfig
+	client *ssh.Client
+	mu     sync.Mutex
 }
 
 type SshOption struct {
@@ -36,39 +34,59 @@ type SshOption struct {
 }
 
 // StreamConn implements C.ProxyAdapter
+// relay会调用该方法,传入net.Conn,由于该net.Conn每次都是随机,新建的,无法复用ssh.Client
+// TODO: 未关闭该client和connection并每次新建,不知道会不会有其它问题
 func (s *Ssh) StreamConn(c net.Conn, metadata *C.Metadata) (net.Conn, error) {
-	if !s.connected.Load() {
-		s.mu.Lock()
-		if !s.connected.Load() {
-			conn, chans, reqs, err := ssh.NewClientConn(c, s.addr, s.cfg)
-			if err != nil {
-				s.mu.Unlock()
-				return nil, err
-			}
-			s.client = ssh.NewClient(conn, chans, reqs)
-			s.connected.Store(true)
-			go func() {
-				err = s.client.Wait()
-				s.connected.Store(false)
-				log.Errorln("ssh client wait: %s", err)
-			}()
-		}
-		s.mu.Unlock()
-	}
-
-	return s.client.Dial("tcp", metadata.RemoteAddress())
-}
-
-func (s *Ssh) DialContext(ctx context.Context, metadata *C.Metadata, opts ...dialer.Option) (_ C.Conn, err error) {
-	c, err := dialer.DialContext(ctx, "tcp", s.addr, opts...)
+	conn, chans, reqs, err := ssh.NewClientConn(c, s.addr, s.cfg)
 	if err != nil {
 		return nil, err
 	}
-	c, err = s.StreamConn(c, metadata)
+	client := ssh.NewClient(conn, chans, reqs)
+	return client.Dial("tcp", metadata.RemoteAddress())
+}
+
+func (s *Ssh) DialContext(ctx context.Context, metadata *C.Metadata, opts ...dialer.Option) (_ C.Conn, err error) {
+	client, err := s.connect(ctx, opts...)
+	if err != nil {
+		return nil, err
+	}
+	c, err := client.Dial("tcp", metadata.RemoteAddress())
 	if err != nil {
 		return nil, err
 	}
 	return NewConn(c, s), nil
+}
+
+func (s *Ssh) connect(ctx context.Context, opts ...dialer.Option) (*ssh.Client, error) {
+	if s.client != nil {
+		return s.client, nil
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	conn, err := dialer.DialContext(ctx, "tcp", s.addr, opts...)
+	if err != nil {
+		return nil, err
+	}
+
+	c, chans, reqs, err := ssh.NewClientConn(conn, s.addr, s.cfg)
+	if err != nil {
+		conn.Close()
+		return nil, err
+	}
+
+	s.client = ssh.NewClient(c, chans, reqs)
+	go func() {
+		err = s.client.Wait()
+		c.Close()
+
+		log.Warnln("ssh client wait: %s", err)
+		s.mu.Lock()
+		s.client = nil
+		s.mu.Unlock()
+	}()
+
+	return s.client, nil
 }
 
 func NewSsh(option SshOption) (*Ssh, error) {
@@ -108,7 +126,6 @@ func NewSsh(option SshOption) (*Ssh, error) {
 			iface: option.Interface,
 			rmark: option.RoutingMark,
 		},
-		cfg:       cfg,
-		connected: atomic.NewBool(false),
+		cfg: cfg,
 	}, nil
 }
