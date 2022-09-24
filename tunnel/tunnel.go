@@ -417,11 +417,11 @@ func AddOutbounds(ps []C.Proxy) (err error) {
 	check := map[string]C.Proxy{}
 	for _, p := range ps {
 		if p.Name() == "" {
-			err = errors.New("proxy name required")
+			err = errors.New("proxy name is required")
 			break
 		}
 		if _, ok := proxies[p.Name()]; ok {
-			err = errors.New("proxy already exist")
+			err = fmt.Errorf("proxy already [%s] exist", p.Name())
 			break
 		}
 		check[p.Name()] = p
@@ -477,11 +477,11 @@ func AddOutboundGroups(params []outboundgroup.GroupCommonOption) (err error) {
 	check := map[string]C.Proxy{}
 	for _, param := range params {
 		if param.Name == "" {
-			err = errors.New("proxy name required")
+			err = errors.New("proxy name is required")
 			break
 		}
 		if _, ok := proxies[param.Name]; ok {
-			err = errors.New("proxy already exist")
+			err = fmt.Errorf("proxy group [%s] already exist", param.Name)
 			break
 		}
 		group, err := outboundgroup.ParseProxyGroup(param, proxies, make(map[string]provider.ProxyProvider))
