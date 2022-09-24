@@ -4,6 +4,7 @@ package controller
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"time"
 
@@ -11,9 +12,8 @@ import (
 	"github.com/Dreamacro/clash/config"
 	C "github.com/Dreamacro/clash/constant"
 	"github.com/Dreamacro/clash/hub/route"
-	"github.com/Dreamacro/clash/log"
-
 	P "github.com/Dreamacro/clash/listener"
+	"github.com/Dreamacro/clash/log"
 	T "github.com/Dreamacro/clash/tunnel"
 )
 
@@ -101,5 +101,10 @@ func SetLog(out io.Writer, level log.LogLevel) {
 func SpeedUrl(proxyName string, url string, timeout time.Duration) (uint16, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	return T.Proxies()[proxyName].URLTest(ctx, url)
+
+	p, ok := T.Proxies()[proxyName]
+	if !ok {
+		return 0, fmt.Errorf("proxy %s not found", proxyName)
+	}
+	return p.URLTest(ctx, url)
 }
