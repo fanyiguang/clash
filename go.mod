@@ -33,6 +33,7 @@ require (
 	github.com/mdlayher/socket v0.1.1 // indirect
 	github.com/oschwald/maxminddb-golang v1.10.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/sagernet/sing v0.0.0-20220801112236-1bb95f9661fc // indirect
 	github.com/u-root/uio v0.0.0-20210528114334-82958018845c // indirect
 	golang.org/x/mod v0.4.2 // indirect
 	golang.org/x/text v0.3.7 // indirect

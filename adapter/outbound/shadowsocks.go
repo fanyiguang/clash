@@ -39,12 +39,12 @@ type ShadowSocksOption struct {
 }
 
 type simpleObfsOption struct {
-	Mode string `obfs:"mode,omitempty"`
+	Mode string `obfs:"proxyMode,omitempty"`
 	Host string `obfs:"host,omitempty"`
 }
 
 type v2rayObfsOption struct {
-	Mode           string            `obfs:"mode"`
+	Mode           string            `obfs:"proxyMode"`
 	Host           string            `obfs:"host,omitempty"`
 	Path           string            `obfs:"path,omitempty"`
 	TLS            bool              `obfs:"tls,omitempty"`
@@ -125,7 +125,7 @@ func NewShadowSocks(option ShadowSocksOption) (*ShadowSocks, error) {
 		}
 
 		if opts.Mode != "tls" && opts.Mode != "http" {
-			return nil, fmt.Errorf("ss %s obfs mode error: %s", addr, opts.Mode)
+			return nil, fmt.Errorf("ss %s obfs proxyMode error: %s", addr, opts.Mode)
 		}
 		obfsMode = opts.Mode
 		obfsOption = &opts
@@ -136,7 +136,7 @@ func NewShadowSocks(option ShadowSocksOption) (*ShadowSocks, error) {
 		}
 
 		if opts.Mode != "websocket" {
-			return nil, fmt.Errorf("ss %s obfs mode error: %s", addr, opts.Mode)
+			return nil, fmt.Errorf("ss %s obfs proxyMode error: %s", addr, opts.Mode)
 		}
 		obfsMode = opts.Mode
 		v2rayOption = &v2rayObfs.Option{

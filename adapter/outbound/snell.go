@@ -118,7 +118,7 @@ func NewSnell(option SnellOption) (*Snell, error) {
 	case "tls", "http", "":
 		break
 	default:
-		return nil, fmt.Errorf("snell %s obfs mode error: %s", addr, obfsOption.Mode)
+		return nil, fmt.Errorf("snell %s obfs proxyMode error: %s", addr, obfsOption.Mode)
 	}
 
 	// backward compatible

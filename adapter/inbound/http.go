@@ -95,6 +95,7 @@ func (h *Http) handleConn(c net.Conn) {
 				request.Host = host
 			}
 
+			// 客户端请求不能设置 requestURI
 			request.RequestURI = ""
 
 			if isUpgradeRequest(request) {

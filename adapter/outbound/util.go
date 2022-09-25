@@ -4,8 +4,11 @@ import (
 	"bytes"
 	"net"
 	"strconv"
+	"strings"
 	"time"
 
+	"github.com/Dreamacro/clash/common/buf"
+	"github.com/Dreamacro/clash/common/bufio"
 	"github.com/Dreamacro/clash/component/resolver"
 	C "github.com/Dreamacro/clash/constant"
 	"github.com/Dreamacro/clash/transport/socks5"
@@ -56,4 +59,55 @@ func safeConnClose(c net.Conn, err error) {
 	if err != nil {
 		c.Close()
 	}
+}
+
+// refer to https://pkg.go.dev/net/http@master#pkg-constants
+var methods = [...]string{"get", "post", "head", "put", "delete", "options", "connect", "patch", "trace"}
+
+var (
+	snifferReadTimeOut = 300 * time.Millisecond
+	// bufferSize         = 16 * 1024
+	bufferSize = 8
+)
+
+func beginWithHTTPMethod(b []byte) bool {
+	for _, m := range &methods {
+		if len(b) >= len(m) && strings.EqualFold(string(b[:len(m)]), m) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func SniffHTTP(b []byte) bool {
+	return beginWithHTTPMethod(b)
+}
+
+func SniffHTTPFromConn(c net.Conn) (bool, net.Conn) {
+	buffer := buf.NewSize(bufferSize)
+	buffer.FullReset()
+
+	// 读取 300ms
+	err := c.SetReadDeadline(time.Now().Add(snifferReadTimeOut))
+	defer c.SetReadDeadline(time.Time{})
+	if err != nil {
+		return false, c
+	}
+
+	var isHttp bool
+	_, err = buffer.ReadOnceFrom(c)
+
+	if err != nil {
+		isHttp = false
+	}
+
+	isHttp = SniffHTTP(buffer.Bytes())
+
+	if !buffer.IsEmpty() {
+		c = bufio.NewCachedConn(c, buffer)
+	} else {
+		buffer.Release()
+	}
+	return isHttp, c
 }
