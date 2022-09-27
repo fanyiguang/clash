@@ -108,3 +108,8 @@ func SpeedUrl(proxyName string, url string, timeout time.Duration) (uint16, erro
 	}
 	return p.URLTest(ctx, url)
 }
+
+// SetDefaultProxy 当没有规则命中时,走该proxy,默认REJECT
+func SetDefaultProxy(proxyName string) bool {
+	return T.SetDefaultProxy(proxyName)
+}

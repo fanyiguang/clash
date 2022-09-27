@@ -37,6 +37,9 @@ var (
 	// Outbound Rule
 	mode = Rule
 
+	// 默认
+	defaultProxy = "REJECT"
+
 	// default timeout for UDP session
 	udpTimeout = 60 * time.Second
 )
@@ -268,9 +271,10 @@ func handleUDPConn(packet *defaultinbound.PacketAdapter) {
 			log.Infoln("[UDP] %s --> %s using DIRECT", metadata.SourceAddress(), metadata.RemoteAddress())
 		default:
 			log.Infoln(
-				"[UDP] %s --> %s doesn't match any rule using DIRECT",
+				"[UDP] %s --> %s doesn't match any rule using %s",
 				metadata.SourceAddress(),
 				metadata.RemoteAddress(),
+				defaultProxy,
 			)
 		}
 
@@ -391,7 +395,7 @@ func match(metadata *C.Metadata) (C.Proxy, C.Rule, error) {
 				}
 			}
 		}
-
+		log.Debugln(rule.Adapter())
 		if rule.Match(metadata) {
 			adapter, ok := proxies[rule.Adapter()]
 			if !ok {
@@ -400,13 +404,23 @@ func match(metadata *C.Metadata) (C.Proxy, C.Rule, error) {
 
 			if metadata.NetWork == C.UDP && !adapter.SupportUDP() {
 				log.Debugln("%s UDP is not supported", adapter.Name())
-				continue
+				break
 			}
 			return adapter, rule, nil
 		}
 	}
+	if _, ok := proxies[defaultProxy]; !ok {
+		defaultProxy = "REJECT"
+	}
+	return proxies[defaultProxy], nil, nil
+}
 
-	return proxies["DIRECT"], nil, nil
+func SetDefaultProxy(proxyName string) bool {
+	if _, ok := proxies[proxyName]; !ok {
+		return false
+	}
+	defaultProxy = proxyName
+	return true
 }
 
 func AddOutbounds(ps []C.Proxy) (err error) {
