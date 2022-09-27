@@ -395,11 +395,10 @@ func match(metadata *C.Metadata) (C.Proxy, C.Rule, error) {
 				}
 			}
 		}
-		log.Debugln(rule.Adapter())
 		if rule.Match(metadata) {
 			adapter, ok := proxies[rule.Adapter()]
 			if !ok {
-				continue
+				break
 			}
 
 			if metadata.NetWork == C.UDP && !adapter.SupportUDP() {
