@@ -29,11 +29,11 @@ func (i *InboundConfig) UnmarshalJSON(b []byte) error {
 
 	var v any
 	switch i.Type {
-	case C.HTTPInbound:
+	case C.InboundTypeHTTP:
 		v = &i.HttpOption
-	case C.SOCKSInbound:
+	case C.InboundTypeSOCKS:
 		v = &i.SocksOption
-	case C.DIRECTInbound:
+	case C.InboundTypeDirect:
 		v = &i.DirectOption
 	default:
 		return errors.New("unknown inbound type")
@@ -49,11 +49,11 @@ func (i *InboundConfig) UnmarshalYAML(node *yaml.Node) error {
 func (i *InboundConfig) MarshalJSON() ([]byte, error) {
 	var v any
 	switch i.Type {
-	case C.HTTPInbound:
+	case C.InboundTypeHTTP:
 		v = &i.HttpOption
-	case C.SOCKSInbound:
+	case C.InboundTypeSOCKS:
 		v = &i.SocksOption
-	case C.DIRECTInbound:
+	case C.InboundTypeDirect:
 		v = &i.DirectOption
 	default:
 		return nil, errors.New("unknown inbound type")

@@ -11,7 +11,7 @@ import (
 )
 
 type ProxyConfig struct {
-	Name               string                      `yaml:"name" json:"name"`
+	// Name               string                      `yaml:"name" json:"name"`
 	Type               C.ProxyType                 `yaml:"type" json:"type"`
 	HttpOption         outbound.HttpOption         `yaml:"-" json:"-"`
 	ShadowSocksOption  outbound.ShadowSocksOption  `yaml:"-" json:"-"`
@@ -21,6 +21,8 @@ type ProxyConfig struct {
 	TrojanOption       outbound.TrojanOption       `yaml:"-" json:"-"`
 	VmessOption        outbound.VmessOption        `yaml:"-" json:"-"`
 	SshOption          outbound.SshOption          `yaml:"-" json:"-"`
+	DirectOption       struct{}                    `yaml:"-" json:"-"`
+	RejectOption       struct{}                    `yaml:"-" json:"-"`
 }
 
 type _Proxy ProxyConfig
@@ -44,6 +46,7 @@ func (p *ProxyConfig) MarshalJSON() ([]byte, error) {
 		v = &p.VmessOption
 	case C.ProxyTypeSsh:
 		v = &p.SshOption
+	case C.ProxyTypeDirect, C.ProxyTypeReject:
 	default:
 		return nil, errors.New("unknown proxy type")
 	}
@@ -77,6 +80,7 @@ func (p *ProxyConfig) UnmarshalJSON(b []byte) error {
 		v = &p.VmessOption
 	case C.ProxyTypeSsh:
 		v = &p.SshOption
+	case C.ProxyTypeDirect, C.ProxyTypeReject:
 	default:
 		return errors.New("unknown proxy type")
 	}

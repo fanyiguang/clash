@@ -13,6 +13,7 @@ import (
 
 	"github.com/Dreamacro/clash/adapter"
 	"github.com/Dreamacro/clash/adapter/defaultinbound"
+	"github.com/Dreamacro/clash/adapter/outbound"
 	"github.com/Dreamacro/clash/adapter/outboundgroup"
 	aprovider "github.com/Dreamacro/clash/adapter/provider"
 	"github.com/Dreamacro/clash/component/nat"
@@ -426,6 +427,10 @@ func AddOutbounds(ps []C.Proxy) (err error) {
 	configMux.Lock()
 	defer configMux.Unlock()
 
+	// 如果线路列表为空，添加 DIRECT 和 Reject
+	if len(proxies) == 0 {
+		ps = append(ps, adapter.NewProxy(outbound.NewDirect()), adapter.NewProxy(outbound.NewReject()))
+	}
 	// 检查后再赋值,让update是一个整体,一起失败/成功
 	check := map[string]C.Proxy{}
 	for _, p := range ps {
@@ -479,6 +484,9 @@ func DeleteOutbounds(params []string) {
 	defer configMux.Unlock()
 
 	for _, param := range params {
+		if param == "DIRECT" || param == "REJECT" {
+			log.Errorln("can not delete %s", param)
+		}
 		delete(proxies, param)
 	}
 	ReNewGlobalOutbound()

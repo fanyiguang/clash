@@ -192,7 +192,7 @@ func NewHttp(option HttpOption, name string, in chan<- C.ConnContext) (*Http, er
 	h := &Http{
 		Base: Base{
 			inboundName: name,
-			inboundType: C.HTTPInbound,
+			inboundType: C.InboundTypeHTTP,
 			addr:        addr,
 		},
 		TcpIn:         in,

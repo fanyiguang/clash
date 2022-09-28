@@ -41,7 +41,7 @@ func NewDirect(option DirectOption, name string, tcpIn chan<- C.ConnContext, udp
 	s := &Direct{
 		Base: Base{
 			inboundName: name,
-			inboundType: C.DIRECTInbound,
+			inboundType: C.InboundTypeDirect,
 			addr:        addr,
 		},
 		tcpIn:   tcpIn,

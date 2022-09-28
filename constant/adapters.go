@@ -123,9 +123,9 @@ type Proxy interface {
 type InboundType uint8
 
 const (
-	HTTPInbound InboundType = iota
-	SOCKSInbound
-	DIRECTInbound
+	InboundTypeHTTP InboundType = iota
+	InboundTypeSOCKS
+	InboundTypeDirect
 )
 
 func (t InboundType) String() string {
@@ -134,9 +134,9 @@ func (t InboundType) String() string {
 
 func (t *InboundType) FromString(kind string) InboundType {
 	return map[string]InboundType{
-		"http":   HTTPInbound,
-		"socks":  SOCKSInbound,
-		"direct": DIRECTInbound,
+		"http":   InboundTypeHTTP,
+		"socks":  InboundTypeSOCKS,
+		"direct": InboundTypeDirect,
 	}[kind]
 }
 

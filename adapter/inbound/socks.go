@@ -150,7 +150,7 @@ func NewSocks(option SocksOption, name string, tcpIn chan<- C.ConnContext, udpIn
 	s := &Socks{
 		Base: Base{
 			inboundName: name,
-			inboundType: C.SOCKSInbound,
+			inboundType: C.InboundTypeSOCKS,
 			addr:        addr,
 		},
 		tcpIn:         tcpIn,

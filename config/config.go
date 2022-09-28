@@ -261,11 +261,11 @@ func ParseInbounds(cfg []InboundConfig) (map[string]C.Inbound, error) {
 	for _, c := range cfg {
 		var i C.Inbound
 		switch c.Type {
-		case C.HTTPInbound:
+		case C.InboundTypeHTTP:
 			i, err = inbound.NewHttp(c.HttpOption, c.Name, T.TCPIn())
-		case C.SOCKSInbound:
+		case C.InboundTypeSOCKS:
 			i, err = inbound.NewSocks(c.SocksOption, c.Name, T.TCPIn(), T.UDPIn())
-		case C.DIRECTInbound:
+		case C.InboundTypeDirect:
 			i, err = inbound.NewDirect(c.DirectOption, c.Name, T.TCPIn(), T.UDPIn())
 		default:
 			err = errors.New("unknown inboundType: " + c.Type.String())
@@ -692,6 +692,10 @@ func ParseProxy(p ProxyConfig) (C.Proxy, error) {
 		proxy, err = outbound.NewTrojan(p.TrojanOption)
 	case C.ProxyTypeSsh:
 		proxy, err = outbound.NewSsh(p.SshOption)
+	case C.ProxyTypeDirect:
+		proxy = outbound.NewDirect()
+	case C.ProxyTypeReject:
+		proxy = outbound.NewReject()
 	default:
 		return nil, fmt.Errorf("unsupport proxy type: %s", p.Type)
 	}
