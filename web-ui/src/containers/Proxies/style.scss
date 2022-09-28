@@ -1,6 +1,6 @@
 .proxies-list {
-    --item-width: calc(100% / (var(--columns) + 1));
-    --gap: calc(var(--item-width) / var(--columns));
+    --item-width: calc(100% / (var(--columns) + 0.5));
+    --gap: calc(var(--item-width) / var(--columns) / 2);
 
     display: flex;
     margin-right: calc(-1 * var(--gap));
@@ -10,27 +10,27 @@
     list-style: none;
 
     @include response(xxl) {
-        --columns: 12;
-    }
-
-    @include response(xl) {
-        --columns: 10;
-    }
-
-    @include response(lg) {
         --columns: 8;
     }
 
+    @include response(xl) {
+        --columns: 5;
+    }
+
+    @include response(lg) {
+        --columns: 4;
+    }
+
     @include response(md) {
-        --columns: 7;
+        --columns: 3;
     }
 
     @include response(sm) {
-        --columns: 6;
+        --columns: 2;
     }
 
     @include response(xs) {
-        --columns: 5;
+        --columns: 1;
     }
 
     @include response(xxs) {
