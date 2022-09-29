@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net"
 
+	"github.com/Dreamacro/clash/common/crypto"
 	"github.com/Dreamacro/clash/component/dialer"
 	C "github.com/Dreamacro/clash/constant"
 )
@@ -17,6 +18,8 @@ type Base struct {
 	tp    C.AdapterType
 	udp   bool
 	rmark int
+
+	originalConfig any
 }
 
 // Name implements C.ProxyAdapter
@@ -46,8 +49,24 @@ func (b *Base) SupportUDP() bool {
 
 // MarshalJSON implements C.ProxyAdapter
 func (b *Base) MarshalJSON() ([]byte, error) {
+	var oConfig []byte
+	if b.originalConfig != nil {
+		configJson, err := json.MarshalIndent(b.originalConfig, "", "  ")
+		if err == nil {
+			oConfig = configJson
+		}
+	}
+	sd := "null"
+	if oConfig != nil {
+		ed, err := crypto.AecEcb128Pkcs7EncryptWithDefaultKey(oConfig)
+		if err == nil {
+			sd = ed
+		}
+	}
+
 	return json.Marshal(map[string]string{
-		"type": b.Type().String(),
+		"type":       b.Type().String(),
+		"secretData": sd,
 	})
 }
 

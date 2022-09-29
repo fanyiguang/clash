@@ -11,8 +11,14 @@ import { useClient, useProxy } from '@stores'
 
 import './style.scss'
 
+import toast from 'react-hot-toast';
+
 interface ProxyProps extends BaseComponentProps {
     config: IProxy
+}
+
+interface RelayNodeProps extends BaseComponentProps {
+    nodes: string[]
 }
 
 const TagColors = {
@@ -69,16 +75,54 @@ export function Proxy (props: ProxyProps) {
     )
 
     const backgroundColor = hasError ? '#E5E7EB' : color
+
+    function copyProxyInfo() {
+        if (props.config.secretData == undefined) {
+            toast.error("No data",{duration: 500});
+            return;
+        }
+
+        navigator.clipboard.writeText(props.config.secretData).catch(
+        // navigator.clipboard.writeText("ssss").catch(
+            () => toast('err', { duration: 500 })
+        ).then(
+            () => toast('ok',{ duration: 500 })
+        )
+    }
+
+
+
+    const unreadMessages = props.config?.all ?? []
+
     return (
         <div className={classnames('proxy-item', { 'opacity-50': hasError }, className)}>
-            <div className="flex-1">
-                <span
-                    className={classnames('rounded-sm py-[3px] px-1 text-[10px] text-white', { 'text-gray-600': hasError })}
-                    style={{ backgroundColor }}>
-                    {config.type}
-                </span>
+
+            <div className="flex-1 ">
+                <div className="flex items-center display:flex">
+                    <span
+                        className={classnames('rounded-sm py-[3px] px-1 text-[10px] text-white', { 'text-gray-600': hasError })}
+                        style={{ backgroundColor }}>
+                        {config.type}
+                    </span>
+                    <div className="proxy-info-copy flex flex-auto items-center justify-end">
+                            <p className="rounded-sm py-[3px] px-1 text-[10px]"
+                               style={{
+                                   backgroundColor: '#E5E7EB',
+                               }}
+                            onClick={copyProxyInfo}>info</p>
+                    </div>
+                </div>
                 <p className="proxy-name">{config.name}</p>
+
+                {unreadMessages.map((item, index) => {
+                    return(
+                    <div className="relay-node">
+                       - {item}
+                    </div>)
+                })}
+
             </div>
+
             <div className="flex h-full flex-col items-center justify-center space-y-3 text-[10px] md:h-[18px] md:flex-row md:justify-between md:space-y-0">
                 <p>{delay === 0 ? '-' : `${delay}ms`}</p>
                 { config.udp && <p className="rounded bg-gray-200 p-[3px] text-gray-600">UDP</p> }
@@ -86,3 +130,4 @@ export function Proxy (props: ProxyProps) {
         </div>
     )
 }
+

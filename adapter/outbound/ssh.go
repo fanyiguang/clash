@@ -12,6 +12,7 @@ import (
 	"github.com/Dreamacro/clash/component/dialer"
 	C "github.com/Dreamacro/clash/constant"
 	"github.com/Dreamacro/clash/log"
+
 	"golang.org/x/crypto/ssh"
 )
 
@@ -20,6 +21,8 @@ type Ssh struct {
 	cfg    *ssh.ClientConfig
 	client *ssh.Client
 	mu     sync.Mutex
+
+	originConfig *SshOption
 }
 
 type SshOption struct {
@@ -27,7 +30,7 @@ type SshOption struct {
 	Name       string `proxy:"name" json:"name"`
 	Server     string `proxy:"server" json:"server"`
 	Port       int    `proxy:"port" json:"port"`
-	UserName   string `proxy:"username" json:"username"`
+	UserName   string `proxy:"username" json:"username,omitempty"`
 	Password   string `proxy:"password,omitempty" json:"password,omitempty"`     // 密码
 	KeyPath    string `proxy:"key_path,omitempty" json:"key_path,omitempty"`     // 私钥地址
 	Passphrase string `proxy:"passphrase,omitempty" json:"passphrase,omitempty"` // 私钥密码
@@ -120,11 +123,12 @@ func NewSsh(option SshOption) (*Ssh, error) {
 
 	return &Ssh{
 		Base: &Base{
-			name:  option.Name,
-			addr:  net.JoinHostPort(option.Server, strconv.Itoa(option.Port)),
-			tp:    C.Ssh,
-			iface: option.Interface,
-			rmark: option.RoutingMark,
+			name:           option.Name,
+			addr:           net.JoinHostPort(option.Server, strconv.Itoa(option.Port)),
+			tp:             C.Ssh,
+			iface:          option.Interface,
+			rmark:          option.RoutingMark,
+			originalConfig: &option,
 		},
 		cfg: cfg,
 	}, nil

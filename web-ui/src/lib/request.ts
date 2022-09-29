@@ -56,9 +56,14 @@ interface History {
 
 export interface Proxy {
     name: string
-    type: 'Direct' | 'Reject' | 'Shadowsocks' | 'Vmess' | 'Trojan' | 'Socks' | 'Http' | 'Snell'
+    type: 'Direct' | 'Reject' | 'Shadowsocks' | 'Vmess' | 'Trojan' | 'Socks' | 'Http' | 'Snell' | 'Relay'
     history: History[]
     udp: boolean
+
+    // 已经加密的数据，此数据包含了Proxy 的具体信息
+    // 使用AES-128-EBC加密，秘钥为 "clash" IV 为 当前的时间（东八区） 如202209281358
+    secretData: string
+    all: string[]
 }
 
 export interface Group {

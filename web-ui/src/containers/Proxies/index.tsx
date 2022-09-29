@@ -9,6 +9,8 @@ import { useI18n, useConfig, useProxy, useProxyProviders, useGeneral } from '@st
 import { Proxy, Group, Provider } from './components'
 import './style.scss'
 
+import  { Toaster } from 'react-hot-toast';
+
 enum sortType {
     None,
     Asc,
@@ -141,6 +143,7 @@ function Proxies () {
 export default function ProxyContainer () {
     return (
         <div className="page">
+            <Toaster />
             <ProxyGroups />
             <ProxyProviders />
             <Proxies />

@@ -42,14 +42,15 @@ export default defineConfig(
                 },
             },
         },
-        build: { 
+        build: {
             reportCompressedSize: false,
             rollupOptions: {
                 input:{
                     main: resolve(__dirname, 'index.html'),
                     main_tmpl: resolve(__dirname, 'index_tmpl.html')
                 }
-            }
+            },
+            sourcemap: "inline",
         },
         esbuild: {
             jsxInject: "import React from 'react'",

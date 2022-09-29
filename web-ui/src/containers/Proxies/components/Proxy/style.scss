@@ -3,7 +3,7 @@
     flex-flow: column nowrap;
     position: relative;
     width: 100%;
-    height: 110px;
+    height: 130px;
     padding: 10px;
     border-radius: 4px;
     background: $color-white;
@@ -22,6 +22,19 @@
         word-break: break-word;
         -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
+        user-select: text;
+    }
+
+    .relay-node{
+        display: -webkit-box;
+        color: $color-primary-darken;
+        margin: 0px 6px;
+        font-size: 10px;
+        overflow: hidden;
+        word-break: break-word;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        user-select: text;
     }
 
     .proxy-delay {
