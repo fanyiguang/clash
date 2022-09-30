@@ -50,7 +50,6 @@ export default defineConfig(
                     main_tmpl: resolve(__dirname, 'index_tmpl.html')
                 }
             },
-            sourcemap: "inline",
         },
         esbuild: {
             jsxInject: "import React from 'react'",

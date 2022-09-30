@@ -194,6 +194,7 @@ func NewHttp(option HttpOption, name string, in chan<- C.ConnContext) (*Http, er
 			inboundName: name,
 			inboundType: C.InboundTypeHTTP,
 			addr:        addr,
+			rawConfig:   &option,
 		},
 		TcpIn:         in,
 		Cache:         c,

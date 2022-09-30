@@ -3,8 +3,11 @@ package route
 import (
 	"net/http"
 
+	"github.com/Dreamacro/clash/common/crypto"
 	"github.com/Dreamacro/clash/config"
 	P "github.com/Dreamacro/clash/listener"
+	"github.com/Dreamacro/clash/log"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
 )
@@ -21,10 +24,18 @@ func getInbounds(w http.ResponseWriter, r *http.Request) {
 	inbounds := P.GetInbounds()
 	var result []map[string]interface{}
 	for _, inbound := range inbounds {
+
+		sd, err := crypto.AecEcb128Pkcs7EncryptWithDefaultKey([]byte(inbound.GetRawConfigString()))
+		if err != nil {
+			log.Infoln("Encrypt data err: %s", err)
+			sd = ""
+		}
+
 		result = append(result, map[string]interface{}{
 			"name":       inbound.Name(),
 			"type":       inbound.Type(),
 			"rawAddress": inbound.RawAddress(),
+			"secretData": sd,
 		})
 	}
 	render.JSON(w, r, result)

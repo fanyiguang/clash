@@ -14,6 +14,8 @@ import { useLogsStreamReader } from '@stores'
 
 import '../styles/common.scss'
 import '../styles/iconfont.scss'
+import Inbounds from "@containers/Inbounds";
+import {Toaster} from "react-hot-toast";
 
 export default function App () {
     useLogsStreamReader()
@@ -23,14 +25,16 @@ export default function App () {
     const routes = [
     // { path: '/', name: 'Overview', component: Overview, exact: true },
         { path: '/proxies', name: 'Proxies', element: <Proxies /> },
+        { path: '/inbounds', name: 'Inbounds', element: <Inbounds /> },
         { path: '/logs', name: 'Logs', element: <Logs /> },
         { path: '/rules', name: 'Rules', element: <Rules />, noMobile: true },
         { path: '/connections', name: 'Connections', element: <Connections />, noMobile: true },
-        { path: '/settings', name: 'Settings', element: <Settings /> },
+        // { path: '/settings', name: 'Settings', element: <Settings /> },
     ]
 
     const layout = (
         <div className={classnames('app', { 'not-clashx': !isClashX() })}>
+            <Toaster />
             <SideBar routes={routes} />
             <div className="page-container">
                 <Outlet />

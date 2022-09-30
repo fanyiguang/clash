@@ -1,0 +1,65 @@
+.inbound-item {
+    display: flex;
+    flex-flow: column nowrap;
+    position: relative;
+    width: 100%;
+    height: 130px;
+    padding: 10px;
+    border-radius: 4px;
+    background: $color-white;
+    user-select: none;
+    overflow: hidden;
+    cursor: default;
+    box-shadow: 2px 5px 20px -3px rgba($color-primary-dark, 0.2);
+    transition: all 300ms ease;
+
+    .inbound-name {
+        display: -webkit-box;
+        margin: 6px 0;
+        color: $color-primary-darken;
+        font-size: 10px;
+        overflow: hidden;
+        word-break: break-word;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        user-select: text;
+    }
+
+    .inbound-addr {
+        display: -webkit-box;
+        margin: 6px 0;
+        color: $color-primary-darken;
+        font-size: 10px;
+        overflow: hidden;
+        word-break: break-word;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        user-select: text;
+    }
+
+    .relay-node{
+        display: -webkit-box;
+        color: $color-primary-darken;
+        margin: 0px 6px;
+        font-size: 10px;
+        overflow: hidden;
+        word-break: break-word;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        user-select: text;
+    }
+
+
+    &:hover {
+        box-shadow: 0 14px 20px -4px rgba($color-primary-darken, 0.4);
+    }
+}
+
+@media (max-width: 768px) {
+    .proxy-item {
+        $height: 70px;
+
+        flex-flow: row nowrap;
+        height: $height;
+    }
+}

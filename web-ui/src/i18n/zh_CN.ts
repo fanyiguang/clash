@@ -7,6 +7,7 @@ const CN = {
         Settings: '设置',
         Connections: '连接',
         Version: '版本',
+        Inbounds: '入站',
     },
     Settings: {
         title: '设置',

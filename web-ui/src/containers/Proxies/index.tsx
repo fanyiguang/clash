@@ -143,7 +143,6 @@ function Proxies () {
 export default function ProxyContainer () {
     return (
         <div className="page">
-            <Toaster />
             <ProxyGroups />
             <ProxyProviders />
             <Proxies />

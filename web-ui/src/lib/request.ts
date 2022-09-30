@@ -1,4 +1,5 @@
 import axios, { AxiosInstance } from 'axios'
+import exp from "constants";
 
 export interface Config {
     port: number
@@ -8,6 +9,17 @@ export interface Config {
     'allow-lan': boolean
     mode: string
     'log-level': string
+}
+
+export interface Inbounds {
+    inbounds: Inbound[]
+}
+
+export interface Inbound {
+    name: string
+    rawAddress: string
+    type: "socks" | "http" | "direct"
+    secretData: string
 }
 
 export interface Rules {
@@ -186,5 +198,9 @@ export class Client {
 
     async changeProxySelected (name: string, select: string) {
         return await this.axiosClient.put<void>(`proxies/${encodeURIComponent(name)}`, { name: select })
+    }
+
+    async getInbounds () {
+        return await this.axiosClient.get<Inbound[]>('inbounds')
     }
 }

@@ -287,3 +287,18 @@ export function useConnectionStreamReader () {
 
     return connection.current
 }
+
+export const inbounds = atomWithImmer([] as API.Inbound[])
+
+export function useInbounds(){
+    const [data, rawSet] = useAtom(inbounds)
+    const set = useWarpImmerSetter(rawSet)
+    const client = useClient()
+
+    async function update () {
+        const resp = await client.getInbounds()
+        set(resp.data)
+    }
+
+    return { inbounds: data, update }
+}

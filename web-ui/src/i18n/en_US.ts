@@ -7,6 +7,7 @@ const EN = {
         Settings: 'Setting',
         Connections: 'Connections',
         Version: 'Version',
+        Inbounds: 'Inbounds',
     },
     Settings: {
         title: 'Settings',

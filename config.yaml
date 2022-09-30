@@ -1,56 +1,82 @@
-#---------------------------------------------------#
-## 更新：2022-09-15 02:13:43
-## 感谢：https://github.com/Hackl0us/SS-Rule-Snippet
-## 链接：sub.sdncimcin.xyz/link/vtgbmXitZP1k6elN?clash=1
-#---------------------------------------------------#
 
-# 允许局域网的连接
-allow-lan: true
-
-# 规则模式：Rule（规则） / Global（全局代理）/ Direct（全局直连）
+allow-lan: false
 mode: rule
-
-# 设置日志输出级别 (默认级别：silent，即不输出任何内容，以避免因日志内容过大而导致程序内存溢出）。
-# 5 个级别：silent / info / warning / error / debug。级别越高日志输出量越大，越倾向于调试，若需要请自行开启。
 log-level: debug
-# Clash 的 RESTful API
-external-controller: '0.0.0.0:9999'
+external-controller: '0.0.0.0:9091'
+secret: 'aaaaab'
 
-# RESTful API 的口令
-secret: '' 
-
-# 您可以将静态网页资源（如 clash-dashboard）放置在一个目录中，clash 将会服务于 `RESTful API/ui`
-# 参数应填写配置目录的相对路径或绝对路径。
-# external-ui: folder
 inbounds:
-  -
-    name: "main-in"
+  - name: main-in
     type: socks
-    listen: "127.0.0.1"
-    port: 9001
-  -
-    name: "v2ray-in"
-    type: socks
-    listen: "127.0.0.1"
-    port: 9002
+    listen: 127.0.0.1
+    port: 1111
+#    users:
+#      - username: admin
+#        password: admin
 
+  - name: v2ray-in
+    type: http
+    listen: 127.0.0.1
+    port: 2222
+    users:
+      - username: admin
+        password: admin
+
+  - name: forward-server
+    type: direct
+    listen: 127.0.0.1
+    port: 3333
+    redirect-addr: 185.199.110.153:80
 
 proxies:
-  - name: "v2ray-out"
-    type: socks5
-    server: "127.0.0.1"
+  - name: "luminati-一个很长的名字-123456789012345678901234567890"
+    type: http
+    server: zproxy.lum-superproxy.io
+    port: 22225
+    username: lum-customer-hl_29e0ce58-zone-data_center
+    password: 6odvixy79hv7
+    proxy-mode: auto
+
+  - name: "http1"
+    type: ssh
+    server: 127.0.0.1
     port: 9111
-    udp: true
-  -
-    "name": "gost"
-    "type": "http"
-    "server": "127.0.0.1"
-    "port": 9222
+
+  - name: "http2"
+    type: http
+    server: 127.0.0.1
+    port: 9222
+    username: "222"
+    password: "222"
+  - name: "luminati-一个很长的名字-123456789012345678901234567890luminati-一个很长的名字-123456789012345678901234567890"
+    type: http
+    server: zproxy.lum-superproxy.io
+    port: 22225
+    username: lum-customer-hl_29e0ce58-zone-data_center
+    password: 6odvixy79hv7
+    proxy-mode: auto
+
+  - name: "v2ray-out"
+    type: ssh
+    server: 127.0.0.1
+    port: 9111
+
+  - name: "gost-1"
+    type: ssh
+    server: 127.0.0.1
+    port: 9111
 
 proxy-groups:
 
-# 规则
+  - name: gost-proxy-chain
+    type: relay
+    proxies:
+      - http1
+      - http2
+
 rules:
-  - INBOUND,main-in,REJECT
-  - INBOUND,v2ray-in,gost
+  - Inbound,main-in,v2ray-out
+  - Inbound,v2ray-in,gost-proxy-chain
+  - Inbound,forward-server,gost-1
   - MATCH,v2ray-out
+  - MATCH,http2

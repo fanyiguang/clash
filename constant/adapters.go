@@ -206,6 +206,7 @@ type Inbound interface {
 	Name() string
 	Type() InboundType
 	RawAddress() string
+	GetRawConfigString() string
 	Close()
 }
 
