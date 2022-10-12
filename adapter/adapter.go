@@ -101,6 +101,7 @@ func (p *Proxy) MarshalJSON() ([]byte, error) {
 
 // URLTest get the delay for the specified URL
 // implements C.Proxy
+// 具体协议握手时会无视ctx.Done(),故在此处监听ctx.Done(),即时退出
 func (p *Proxy) URLTest(ctx context.Context, url string) (t uint16, err error) {
 	defer func() {
 		p.alive.Store(err == nil)
@@ -114,6 +115,32 @@ func (p *Proxy) URLTest(ctx context.Context, url string) (t uint16, err error) {
 		}
 	}()
 
+	res := make(chan urlTestRes)
+	go func() {
+		t, err := p.urlTest(ctx, url)
+		select {
+		case <-ctx.Done():
+			// 此处就部关闭channel res了,等自动垃圾回收
+			return
+		case res <- urlTestRes{t: t, err: err}:
+			close(res)
+		}
+	}()
+
+	select {
+	case <-ctx.Done():
+		return 0, context.DeadlineExceeded
+	case result := <-res:
+		return result.t, result.err
+	}
+}
+
+type urlTestRes struct {
+	t   uint16
+	err error
+}
+
+func (p *Proxy) urlTest(ctx context.Context, url string) (t uint16, err error) {
 	addr, err := urlToMetadata(url)
 	if err != nil {
 		return
