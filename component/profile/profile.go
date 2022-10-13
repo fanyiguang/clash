@@ -5,4 +5,4 @@ import (
 )
 
 // StoreSelected is a global switch for storing selected proxy to cache
-var StoreSelected = atomic.NewBool(true)
+var StoreSelected = atomic.NewBool(false)

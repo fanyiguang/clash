@@ -192,7 +192,7 @@ func UnmarshalRawConfig(buf []byte) (*RawConfig, error) {
 			},
 		},
 		Profile: Profile{
-			StoreSelected: true,
+			StoreSelected: false,
 		},
 	}
 
