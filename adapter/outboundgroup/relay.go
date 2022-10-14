@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 
 	"github.com/Dreamacro/clash/adapter/outbound"
 	"github.com/Dreamacro/clash/common/singledo"
@@ -37,25 +38,33 @@ func (r *Relay) DialContext(ctx context.Context, metadata *C.Metadata, opts ...d
 	first := proxies[0]
 	last := proxies[len(proxies)-1]
 
-	c, err := dialer.DialContext(ctx, "tcp", first.Addr(), r.Base.DialOptions(opts...)...)
+	firstMeta, err := addrToMetadata(proxies[1].Addr())
 	if err != nil {
-		return nil, fmt.Errorf("%s connect error: %w", first.Addr(), err)
+		return nil, fmt.Errorf("%s addrToMetadata failed", proxies[1].Name())
 	}
-	tcpKeepAlive(c)
 
-	var currentMeta *C.Metadata
-	for _, proxy := range proxies[1:] {
-		currentMeta, err = addrToMetadata(proxy.Addr())
-		if err != nil {
-			return nil, err
+	var c net.Conn
+	c, err = first.DialContext(ctx, firstMeta, r.Base.DialOptions(opts...)...)
+	if err != nil {
+		return nil, fmt.Errorf("relay DialContext failed, first jump = %s, %v", first.Name(), err)
+	}
+
+	if len(proxies) > 2 {
+		var currentMeta *C.Metadata
+		current := proxies[1]
+		for _, next := range proxies[2:] {
+			currentMeta, err = addrToMetadata(next.Addr())
+			if err != nil {
+				return nil, err
+			}
+
+			c, err = current.StreamConn(c, currentMeta)
+			if err != nil {
+				return nil, fmt.Errorf("%s connect error: %w", first.Addr(), err)
+			}
+
+			current = next
 		}
-
-		c, err = first.StreamConn(c, currentMeta)
-		if err != nil {
-			return nil, fmt.Errorf("%s connect error: %w", first.Addr(), err)
-		}
-
-		first = proxy
 	}
 
 	c, err = last.StreamConn(c, metadata)
