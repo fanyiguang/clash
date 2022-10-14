@@ -1,0 +1,59 @@
+# 启用gost测试
+# gost.exe -L sshd://ssh-1:ssh-1@:9001
+# gost.exe -L socks://socks-1:socks-1@:9002
+# gost.exe -L socks://socks-2:socks-2@:9003
+# gost.exe -L http://http-1:http-1@:9004
+
+allow-lan: false
+mode: rule
+log-level: debug
+external-controller: '0.0.0.0:9091'
+secret: 'aaaaab'
+
+inbounds:
+  - name: main-in
+    type: socks
+    listen: 127.0.0.1
+    port: 7999
+
+proxies:
+  - name: "ssh-1"
+    server: 127.0.0.1
+    port: 9001
+    type: ssh
+    username: ssh-1
+    password: ssh-1
+
+  - name: "socks-1"
+    server: 127.0.0.1
+    port: 9002
+    type: socks5
+    username: socks-1
+    password: socks-1
+
+  - name: "socks-2"
+    server: 127.0.0.1
+    port: 9003
+    type: socks5
+    username: socks-2
+    password: socks-2
+  
+  - name: "http-1"
+    server: 127.0.0.1
+    port: 9004
+    type: http
+    username: http-1
+    password: http-1
+
+
+proxy-groups:
+  - name: relay
+    type: relay
+    proxies:
+      - ssh-1
+      - http-1
+      - socks-1
+      - socks-2
+
+rules:
+  - INBOUND,main-in,relay
