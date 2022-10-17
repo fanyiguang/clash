@@ -80,7 +80,7 @@ export interface Proxy {
 
 export interface Group {
     name: string
-    type: 'Selector' | 'URLTest' | 'Fallback'
+    type: 'Selector' | 'URLTest' | 'Fallback' | 'AutoSelector'
     now: string
     all: string[]
     history: History[]

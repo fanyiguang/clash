@@ -63,7 +63,7 @@ export interface Socks5Proxy {
     port?: number
 }
 
-export type ProxyGroup = SelectProxyGroup & UrlTestProxyGroup & FallbackProxyGroup & LoadBalanceGroup
+export type ProxyGroup = SelectProxyGroup & UrlTestProxyGroup & FallbackProxyGroup & LoadBalanceGroup & AutoSelectorProxyGroup
 
 export interface SelectProxyGroup {
     name?: string
@@ -103,4 +103,13 @@ export interface UrlTestProxyGroup {
     url?: string
 
     interval?: number // second
+}
+
+
+export interface AutoSelectorProxyGroup {
+    name?: string
+
+    type?: 'auto-selector'
+
+    proxies?: string[] // proxy names
 }

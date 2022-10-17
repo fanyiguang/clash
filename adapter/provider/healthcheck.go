@@ -36,6 +36,9 @@ func (hc *HealthCheck) process() {
 		select {
 		case <-ticker.C:
 			now := time.Now().Unix()
+
+			// 如果设置了 lazy，那么只有在很久没有使用的时候会去检查
+			// 如果没有设置了 lazy，那么就使用固定间隔检查
 			if !hc.lazy || now-hc.lastTouch.Load() < int64(hc.interval) {
 				hc.check()
 			}

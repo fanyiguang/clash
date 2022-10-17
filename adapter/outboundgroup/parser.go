@@ -56,7 +56,7 @@ func ParseProxyGroup(config GroupCommonOption, proxyMap map[string]C.Proxy, prov
 		}
 
 		// select don't need health check
-		if config.Type == "select" || config.Type == "relay" {
+		if config.Type == "select" || config.Type == "relay" || config.Type == "auto-selector" {
 			hc := provider.NewHealthCheck(ps, "", 0, true)
 			pd, err := provider.NewCompatibleProvider(groupName, ps, hc)
 			if err != nil {
@@ -103,6 +103,8 @@ func ParseProxyGroup(config GroupCommonOption, proxyMap map[string]C.Proxy, prov
 		return NewLoadBalance(&config, providers, strategy)
 	case "relay":
 		group = NewRelay(&config, providers)
+	case "auto-selector":
+		group = NewAutoSelector(&config, providers)
 	default:
 		return nil, fmt.Errorf("%w: %s", errType, config.Type)
 	}

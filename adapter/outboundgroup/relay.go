@@ -100,6 +100,11 @@ func (r *Relay) proxies(metadata *C.Metadata, touch bool) []C.Proxy {
 
 	for n, proxy := range proxies {
 		subproxy := proxy.Unwrap(metadata)
+
+		if subproxy != nil && subproxy.Name() == proxy.Name() {
+			continue
+		}
+
 		for subproxy != nil {
 			proxies[n] = subproxy
 			subproxy = subproxy.Unwrap(metadata)

@@ -163,7 +163,7 @@ export function useProxy () {
         // fix missing name
         global.name = 'GLOBAL'
 
-        const policyGroup = new Set(['Selector', 'URLTest', 'Fallback', 'LoadBalance'])
+        const policyGroup = new Set(['Selector', 'URLTest', 'Fallback', 'LoadBalance', 'AutoSelector'])
         const unUsedProxy = new Set(['DIRECT', 'REJECT', 'GLOBAL'])
         const proxies = global.all
             .filter(key => !unUsedProxy.has(key))
