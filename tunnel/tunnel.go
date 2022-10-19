@@ -381,6 +381,7 @@ func match(metadata *C.Metadata) (C.Proxy, C.Rule, error) {
 		} else {
 			log.Debugln("[DNS] %s --> %s", metadata.Host, ip.String())
 			metadata.DstIP = ip
+			metadata.Host = ip.String()
 		}
 		resolved = true
 	}
