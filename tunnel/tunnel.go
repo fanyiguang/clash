@@ -24,6 +24,8 @@ import (
 	icontext "github.com/Dreamacro/clash/context"
 	"github.com/Dreamacro/clash/log"
 	"github.com/Dreamacro/clash/tunnel/statistic"
+
+	"go.uber.org/atomic"
 )
 
 var (
@@ -43,6 +45,8 @@ var (
 
 	// default timeout for UDP session
 	udpTimeout = 60 * time.Second
+
+	LocalDNS *atomic.Bool = atomic.NewBool(false)
 )
 
 func init() {
@@ -367,6 +371,17 @@ func match(metadata *C.Metadata) (C.Proxy, C.Rule, error) {
 	if node := resolver.DefaultHosts.Search(metadata.Host); node != nil {
 		ip := node.Data.(net.IP)
 		metadata.DstIP = ip
+		resolved = true
+	}
+
+	if LocalDNS.Load() && metadata.Host != "" && metadata.DstIP == nil {
+		ip, err := resolver.ResolveIP(metadata.Host)
+		if err != nil {
+			log.Debugln("[DNS] resolve %s error: %s", metadata.Host, err.Error())
+		} else {
+			log.Debugln("[DNS] %s --> %s", metadata.Host, ip.String())
+			metadata.DstIP = ip
+		}
 		resolved = true
 	}
 
