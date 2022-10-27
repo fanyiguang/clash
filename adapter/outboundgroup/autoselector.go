@@ -116,12 +116,30 @@ func (a *AutoSelector) DialContext(ctx context.Context, metadata *C.Metadata, op
 		return nil, errors.New("no available proxies")
 	}
 	for _, proxy := range proxies {
-		conn, err := proxy.DialContext(ctx, metadata, a.Base.DialOptions(opts...)...)
-		if err == nil {
-			a.currentProxyName = proxy.Name()
-			return conn, nil
+		type dialResult struct {
+			conn C.Conn
+			err  error
 		}
-		a.failedProxies.Store(proxy.Name(), time.Now())
+
+		ch := make(chan dialResult)
+		dialCtx, _ := context.WithTimeout(context.Background(), time.Second*1)
+		//defer done()
+		go func() {
+			var r dialResult
+			r.conn, r.err = proxy.DialContext(dialCtx, metadata, a.Base.DialOptions(opts...)...)
+			ch <- r
+		}()
+
+		select {
+		case r := <-ch:
+			if r.err == nil {
+				a.currentProxyName = proxy.Name()
+				return r.conn, nil
+			}
+			a.failedProxies.Store(proxy.Name(), time.Now())
+		case <-dialCtx.Done():
+			continue
+		}
 	}
 
 	return nil, errors.New("no available proxies")
