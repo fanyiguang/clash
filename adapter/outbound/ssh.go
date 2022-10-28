@@ -66,6 +66,9 @@ func (s *Ssh) connect(ctx context.Context, opts ...dialer.Option) (*ssh.Client, 
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.client != nil {
+		return s.client, nil
+	}
 
 	conn, err := dialer.DialContext(ctx, "tcp", s.addr, opts...)
 	if err != nil {
@@ -88,7 +91,6 @@ func (s *Ssh) connect(ctx context.Context, opts ...dialer.Option) (*ssh.Client, 
 		s.client = nil
 		s.mu.Unlock()
 	}()
-
 	return s.client, nil
 }
 
