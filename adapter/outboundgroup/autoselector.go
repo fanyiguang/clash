@@ -14,7 +14,7 @@ import (
 	"github.com/Dreamacro/clash/constant/provider"
 )
 
-var defaultFailedTimeout = time.Second * 5
+var defaultFailedTimeout = time.Second * 3
 
 //// AutoSelector 封装一层，用于处理gc的时候停止定时器
 //type AutoSelector struct {
@@ -122,9 +122,10 @@ func (a *AutoSelector) DialContext(ctx context.Context, metadata *C.Metadata, op
 		}
 
 		ch := make(chan dialResult)
-		dialCtx, _ := context.WithTimeout(context.Background(), time.Second*1)
-		//defer done()
+		dialCtx, cancel := context.WithTimeout(context.Background(), defaultFailedTimeout)
+		// defer cancel()
 		go func() {
+			defer cancel()
 			var r dialResult
 			r.conn, r.err = proxy.DialContext(dialCtx, metadata, a.Base.DialOptions(opts...)...)
 			ch <- r
