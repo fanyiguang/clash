@@ -17,9 +17,14 @@ import (
 	T "github.com/Dreamacro/clash/tunnel"
 )
 
-// GetInbounds 获取全部inbounds
+// GetInbounds 获取全部inbounds 拷贝一份后返回,可以安全正常读写
 func GetInbounds() map[string]C.Inbound {
 	return P.GetInbounds()
+}
+
+// GetInbound 根据name获取inbound, 返回inbound和是否存在
+func GetInbound(name string) (C.Inbound, bool) {
+	return P.GetInbound(name)
 }
 
 // AddInbounds 新增inbound

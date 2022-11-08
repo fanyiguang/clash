@@ -77,7 +77,20 @@ func UpdateRules(newRules []C.Rule) {
 
 // Proxies return all proxies
 func Proxies() map[string]C.Proxy {
-	return proxies
+	configMux.RLock()
+	result := make(map[string]C.Proxy, len(proxies))
+	for name, proxy := range proxies {
+		result[name] = proxy
+	}
+	configMux.RUnlock()
+	return result
+}
+
+func GetProxy(name string) (C.Proxy, bool) {
+	configMux.RLock()
+	proxy, exist := proxies[name]
+	configMux.RUnlock()
+	return proxy, exist
 }
 
 // Providers return all compatible providers
@@ -161,9 +174,9 @@ func preHandleMetadata(metadata *C.Metadata) error {
 func resolveMetadata(ctx C.PlainContext, metadata *C.Metadata) (proxy C.Proxy, rule C.Rule, err error) {
 	switch mode {
 	case Direct:
-		proxy = proxies["DIRECT"]
+		proxy, _ = GetProxy("DIRECT")
 	case Global:
-		proxy = proxies["GLOBAL"]
+		proxy, _ = GetProxy("GLOBAL")
 	// Rule
 	default:
 		proxy, rule, err = match(metadata)
@@ -432,7 +445,7 @@ func match(metadata *C.Metadata) (C.Proxy, C.Rule, error) {
 }
 
 func SetDefaultProxy(proxyName string) bool {
-	if _, ok := proxies[proxyName]; !ok {
+	if _, ok := GetProxy(proxyName); !ok {
 		return false
 	}
 	defaultProxy = proxyName

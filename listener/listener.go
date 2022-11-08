@@ -342,7 +342,19 @@ func AddInbounds(params []config.InboundConfig) (err error) {
 func GetInbounds() map[string]C.Inbound {
 	inboundsMux.RLock()
 	defer inboundsMux.RUnlock()
-	return globalInbounds
+
+	inboundsBackup := make(map[string]C.Inbound, len(globalInbounds))
+	for name, inbound := range globalInbounds {
+		inboundsBackup[name] = inbound
+	}
+	return inboundsBackup
+}
+
+func GetInbound(name string) (C.Inbound, bool) {
+	inboundsMux.RLock()
+	defer inboundsMux.RUnlock()
+	inbound, ok := globalInbounds[name]
+	return inbound, ok
 }
 
 func DeleteInbounds(names []string) {
