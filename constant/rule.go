@@ -14,6 +14,7 @@ const (
 	RuleTypeProcessPath
 	RuleTypeMATCH
 	RuleTypeInbound
+	RuleTypeAnd
 )
 
 type RuleType int
@@ -44,6 +45,8 @@ func (rt RuleType) String() string {
 		return "MATCH"
 	case RuleTypeInbound:
 		return "INBOUND"
+	case RuleTypeAnd:
+		return "AND"
 	default:
 		return "Unknown"
 	}
@@ -64,6 +67,7 @@ func (rt RuleType) FormatString(kind string) RuleType {
 		"PROCESS-PATH":   RuleTypeProcessPath,
 		"MATCH":          RuleTypeMATCH,
 		"INBOUND":        RuleTypeInbound,
+		"AND":            RuleTypeAnd,
 	}[kind]
 }
 

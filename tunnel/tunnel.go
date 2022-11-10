@@ -549,3 +549,16 @@ func AddOutboundGroups(params []outboundgroup.GroupCommonOption) (err error) {
 	ReNewGlobalOutbound()
 	return
 }
+
+func UpdateOutboundGroup(param outboundgroup.GroupCommonOption) error {
+	configMux.Lock()
+	defer configMux.Unlock()
+
+	group, err := outboundgroup.ParseProxyGroup(param, proxies, make(map[string]provider.ProxyProvider))
+	if err != nil {
+		return err
+	}
+	proxies[param.Name] = adapter.NewProxy(group)
+	ReNewGlobalOutbound()
+	return nil
+}
