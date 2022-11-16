@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/Dreamacro/clash/adapter/defaultinbound"
+	"github.com/Dreamacro/clash/common/pool"
 	C "github.com/Dreamacro/clash/constant"
 	"github.com/Dreamacro/clash/context"
 	"github.com/Dreamacro/clash/log"
@@ -89,18 +90,21 @@ func (s *Direct) NewRedirectTCP(conn net.Conn) *context.ConnContext {
 }
 
 func (s *Direct) handleUDP(pc net.PacketConn, buf []byte, addr net.Addr) {
-	packet := &packet{
-		pc:     pc,
-		rAddr:  addr,
-		bufRef: buf,
+	packet := &directPacket{
+		pc:    pc,
+		buf:   buf,
+		rAddr: addr,
 	}
 	meta := s.newMetadata()
+	if ip, port, err := parseAddr(packet.LocalAddr().String()); err == nil {
+		meta.SrcIP = ip
+		meta.SrcPort = port
+	}
 	meta.DstPort = s.dstPort
 	meta.Host = s.host
 	meta.DstIP = s.destIP
 	meta.Type = C.REDIR
 	meta.NetWork = C.UDP
-
 	p := &defaultinbound.PacketAdapter{
 		UDPPacket: packet,
 		Meta:      meta,
@@ -135,4 +139,26 @@ func (s *Direct) Close() {
 	_ = s.Listener.Close()
 	_ = s.UDPListener.Close()
 	log.Infoln("Direct OtherInbound %s closed", s.Base.inboundName)
+}
+
+type directPacket struct {
+	pc    net.PacketConn
+	buf   []byte
+	rAddr net.Addr
+}
+
+func (p *directPacket) Data() []byte {
+	return p.buf
+}
+
+func (p *directPacket) WriteBack(b []byte, addr net.Addr) (n int, err error) {
+	return p.pc.WriteTo(b, p.rAddr)
+}
+
+func (p *directPacket) LocalAddr() net.Addr {
+	return p.rAddr
+}
+
+func (p *directPacket) Drop() {
+	pool.Put(p.buf)
 }

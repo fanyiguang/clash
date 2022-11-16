@@ -215,7 +215,6 @@ func handleUDPConn(packet *defaultinbound.PacketAdapter) {
 	}
 
 	key := packet.LocalAddr().String()
-
 	handle := func() bool {
 		pc := natTable.Get(key)
 		if pc != nil {
@@ -299,7 +298,6 @@ func handleUDPConn(packet *defaultinbound.PacketAdapter) {
 		oAddr, _ := netip.AddrFromSlice(metadata.DstIP)
 		oAddr = oAddr.Unmap()
 		go handleUDPToLocal(packet.UDPPacket, pc, key, oAddr, fAddr)
-
 		natTable.Set(key, pc)
 		handle()
 	}()
