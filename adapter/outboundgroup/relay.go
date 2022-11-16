@@ -3,6 +3,7 @@ package outboundgroup
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 
@@ -75,6 +76,20 @@ func (r *Relay) DialContext(ctx context.Context, metadata *C.Metadata, opts ...d
 	return outbound.NewConn(c, r), nil
 }
 
+func (r *Relay) ListenPacketContext(ctx context.Context, metadata *C.Metadata, opts ...dialer.Option) (C.PacketConn, error) {
+	proxies := r.proxies(metadata, true)
+	if len(proxies) > 1 {
+		return nil, errors.New("unsupported relay udp")
+	}
+	if len(proxies) == 1 {
+		if !proxies[0].SupportUDP() {
+			return nil, errors.New("relay first jump not support udp")
+		}
+		return proxies[0].ListenPacketContext(ctx, metadata, opts...)
+	}
+	return outbound.NewDirect().ListenPacketContext(ctx, metadata, opts...)
+}
+
 // MarshalJSON implements C.ProxyAdapter
 func (r *Relay) MarshalJSON() ([]byte, error) {
 	var all []string
@@ -115,12 +130,20 @@ func (r *Relay) proxies(metadata *C.Metadata, touch bool) []C.Proxy {
 }
 
 func NewRelay(option *GroupCommonOption, providers []provider.ProxyProvider) *Relay {
+	var supportUDP bool
+	proxies := getProvidersProxies(providers, false)
+	if len(proxies) == 0 {
+		supportUDP = true
+	} else if len(proxies) == 1 {
+		supportUDP = proxies[0].SupportUDP()
+	}
 	return &Relay{
 		Base: outbound.NewBase(outbound.BaseOption{
 			Name:        option.Name,
 			Type:        C.Relay,
 			Interface:   option.Interface,
 			RoutingMark: option.RoutingMark,
+			UDP:         supportUDP,
 		}),
 		single:    singledo.NewSingle(defaultGetProxiesDuration),
 		providers: providers,
