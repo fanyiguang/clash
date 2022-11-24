@@ -14,14 +14,10 @@ import (
 	"github.com/Dreamacro/clash/constant/provider"
 )
 
-var defaultFailedTimeout = time.Second * 3
-
-//// AutoSelector 封装一层，用于处理gc的时候停止定时器
-//type AutoSelector struct {
-//	*AutoSelector
-//
-//
-//}
+var (
+	defaultFailedTimeout = time.Second * 3
+	defaultBlockTime     = time.Minute
+)
 
 type AutoSelector struct {
 	*outbound.Base
@@ -33,9 +29,8 @@ type AutoSelector struct {
 
 	// failedTimeout 代理失败后重新尝试的时间间隔
 	failedTimeout time.Duration
-
-	// 记录当前代理
-	currentProxyName string
+	// blockTime 代理失败后被关小黑屋的时长
+	blockTime time.Duration
 }
 
 func (a *AutoSelector) Alive() bool {
@@ -47,7 +42,7 @@ func (a *AutoSelector) DelayHistory() []C.DelayHistory {
 }
 
 func (a *AutoSelector) LastDelay() uint16 {
-	proxies := a.findCandidatesProxy()
+	proxies := a.FindCandidatesProxy()
 	if len(proxies) == 0 {
 		return 0
 	}
@@ -60,84 +55,48 @@ func (a *AutoSelector) LastDelay() uint16 {
 }
 
 func (a *AutoSelector) URLTest(ctx context.Context, url string) (uint16, error) {
-	proxies := a.findCandidatesProxy()
+	proxies := a.FindCandidatesProxy()
 	if len(proxies) == 0 {
 		return 0, errors.New("no available proxies")
 	}
 	for _, proxy := range proxies {
 		t, err := proxy.URLTest(ctx, url)
 		if err == nil {
-			a.currentProxyName = proxy.Name()
 			return t, nil
 		}
 		a.failedProxies.Store(proxy.Name(), time.Now())
+		a.single.Reset()
 	}
 
 	return 0, errors.New("no available proxies")
 }
 
-func (a *AutoSelector) Dial(metadata *C.Metadata) (C.Conn, error) {
-	proxies := a.findCandidatesProxy()
-	if len(proxies) == 0 {
-		return nil, errors.New("no available proxies")
-	}
-	for _, proxy := range proxies {
-		conn, err := proxy.Dial(metadata)
-		if err == nil {
-			a.currentProxyName = proxy.Name()
-			return conn, nil
-		}
-		a.failedProxies.Store(proxy.Name(), time.Now())
-	}
-
-	return nil, errors.New("no available proxies")
-}
-
-func (a *AutoSelector) DialUDP(metadata *C.Metadata) (C.PacketConn, error) {
-	proxies := a.findCandidatesProxy()
-	if len(proxies) == 0 {
-		return nil, errors.New("no available proxies")
-	}
-	for _, proxy := range proxies {
-		conn, err := proxy.DialUDP(metadata)
-		if err == nil {
-			a.currentProxyName = proxy.Name()
-			return conn, nil
-		}
-		a.failedProxies.Store(proxy.Name(), time.Now())
-	}
-
-	return nil, errors.New("no available proxies")
-}
-
 func (a *AutoSelector) DialContext(ctx context.Context, metadata *C.Metadata, opts ...dialer.Option) (C.Conn, error) {
-	proxies := a.findCandidatesProxy()
+	proxies := a.FindCandidatesProxy()
 	if len(proxies) == 0 {
 		return nil, errors.New("no available proxies")
 	}
-	for _, proxy := range proxies {
-		type dialResult struct {
-			conn C.Conn
-			err  error
-		}
 
-		ch := make(chan dialResult)
-		dialCtx, cancel := context.WithTimeout(context.Background(), defaultFailedTimeout)
+	for _, proxy := range proxies {
+		ch := make(chan dialResult, 1)
+		dialCtx, cancel := context.WithTimeout(ctx, a.failedTimeout)
 		// defer cancel()
 		go func() {
 			defer cancel()
 			var r dialResult
 			r.conn, r.err = proxy.DialContext(dialCtx, metadata, a.Base.DialOptions(opts...)...)
 			ch <- r
+			close(ch)
 		}()
 
 		select {
 		case r := <-ch:
 			if r.err == nil {
-				a.currentProxyName = proxy.Name()
 				return r.conn, nil
 			}
 			a.failedProxies.Store(proxy.Name(), time.Now())
+			// 出现新的关小黑屋,需要重置FindCandidatesProxy
+			a.single.Reset()
 		case <-dialCtx.Done():
 			continue
 		}
@@ -148,29 +107,75 @@ func (a *AutoSelector) DialContext(ctx context.Context, metadata *C.Metadata, op
 
 // ListenPacketContext implements C.ProxyAdapter
 func (a *AutoSelector) ListenPacketContext(ctx context.Context, metadata *C.Metadata, opts ...dialer.Option) (C.PacketConn, error) {
-	proxies := a.findCandidatesProxy()
+	proxies := a.FindCandidatesProxy()
 	if len(proxies) == 0 {
 		return nil, errors.New("no available proxies")
 	}
 
 	for _, proxy := range proxies {
-		pc, err := proxy.ListenPacketContext(ctx, metadata, a.Base.DialOptions(opts...)...)
-		if err == nil {
-			a.currentProxyName = proxy.Name()
-			return pc, nil
+		if proxy.SupportUDP() {
+			ch := make(chan listenPacketRes, 1)
+			dialCtx, cancel := context.WithTimeout(ctx, a.failedTimeout)
+			go func() {
+				defer cancel()
+				pc, err := proxy.ListenPacketContext(dialCtx, metadata, a.Base.DialOptions(opts...)...)
+				ch <- listenPacketRes{
+					conn: pc,
+					err:  err,
+				}
+				close(ch)
+			}()
+			select {
+			case r := <-ch:
+				if r.err == nil {
+					return r.conn, nil
+				}
+				a.failedProxies.Store(proxy.Name(), time.Now())
+				a.single.Reset()
+			case <-dialCtx.Done():
+			}
 		}
-		a.failedProxies.Store(proxy.Name(), time.Now())
 	}
 
-	return nil, nil
+	return nil, errors.New("no available proxies")
+}
+
+func (a *AutoSelector) Dial(metadata *C.Metadata) (C.Conn, error) {
+	proxies := a.FindCandidatesProxy()
+	if len(proxies) == 0 {
+		return nil, errors.New("no available proxies")
+	}
+	for _, proxy := range proxies {
+		conn, err := proxy.Dial(metadata)
+		if err == nil {
+			return conn, nil
+		}
+		a.failedProxies.Store(proxy.Name(), time.Now())
+		a.single.Reset()
+	}
+
+	return nil, errors.New("no available proxies")
+}
+
+func (a *AutoSelector) DialUDP(metadata *C.Metadata) (C.PacketConn, error) {
+	proxies := a.FindCandidatesProxy()
+	if len(proxies) == 0 {
+		return nil, errors.New("no available proxies")
+	}
+	for _, proxy := range proxies {
+		conn, err := proxy.DialUDP(metadata)
+		if err == nil {
+			return conn, nil
+		}
+		a.failedProxies.Store(proxy.Name(), time.Now())
+		a.single.Reset()
+	}
+
+	return nil, errors.New("no available proxies")
 }
 
 func (a *AutoSelector) Now() string {
-	if a.currentProxyName != "" {
-		return a.currentProxyName
-	}
-
-	c := a.findCandidatesProxy()
+	c := a.FindCandidatesProxy()
 	if len(c) > 0 {
 		return c[0].Name()
 	}
@@ -178,75 +183,35 @@ func (a *AutoSelector) Now() string {
 	return ""
 }
 
-func (a *AutoSelector) findCandidatesProxy() []C.Proxy {
-	// 获取所有可用代理
-	aliveProxies := a.proxies(true)
+func (a *AutoSelector) FindCandidatesProxy() []C.Proxy {
+	elem, _, _ := a.single.Do(func() (any, error) {
+		all := getProvidersProxies(a.providers, true)
+		result := make([]C.Proxy, 0, len(all))
 
-	// 获取所有被阻止的代理
-	blockedProxies := a.getBlockedProxiesName()
-
-	p := make([]C.Proxy, 0, len(aliveProxies))
-
-	// 删除所有被阻止的代理
-	for _, proxy := range aliveProxies {
-		blocked := false
-		for _, bn := range blockedProxies {
-			if bn == proxy.Name() {
-				blocked = true
-				break
+		// 被关小黑屋的时间只要在此之前就放出来
+		allowedLastFailedTime := time.Now().Add(-a.blockTime)
+		for _, proxy := range all {
+			// 短期内失败过,被关进小黑屋
+			if block, exist := a.failedProxies.Load(proxy.Name()); exist {
+				// 刑期到了,放出
+				if block.(time.Time).Before(allowedLastFailedTime) {
+					result = append(result, proxy)
+					a.failedProxies.Delete(proxy.Name())
+				}
+				continue
 			}
+			result = append(result, proxy)
 		}
-		if !blocked {
-			p = append(p, proxy)
+		// 没有结果,返回全部
+		if len(result) == 0 {
+			result = all
 		}
-	}
-
-	// 如果所有的代理都被阻止，返回所有代理
-	if len(p) == 0 {
-		p = aliveProxies
-	}
-
-	// 如果当前代理在可用列表中，把当前代理放到第一个
-	if len(p) > 1 && a.currentProxyName != "" {
-		currentIndex := 0
-		for id, proxy := range p {
-			if proxy.Name() == a.currentProxyName {
-				currentIndex = id
-				break
-			}
-		}
-		if currentIndex != 0 {
-			p = append(p[currentIndex:], p[:currentIndex]...)
-		}
-	}
-
-	return p
-}
-
-func (a *AutoSelector) getBlockedProxiesName() []string {
-	timeout := time.Now().Add(-a.failedTimeout)
-
-	list := make([]string, 0, 8)
-	a.failedProxies.Range(func(key, value interface{}) bool {
-		if value.(time.Time).Before(timeout) {
-			a.failedProxies.Delete(key)
-		}
-		list = append(list, key.(string))
-		return true
+		return result, nil
 	})
-
-	return list
+	return elem.([]C.Proxy)
 }
 
-func (a *AutoSelector) proxies(touch bool) []C.Proxy {
-	elm, _, _ := a.single.Do(func() (any, error) {
-		return getProvidersProxies(a.providers, touch), nil
-	})
-
-	return elm.([]C.Proxy)
-}
-
-// Unwrap 返回可用代理列表
+// Unwrap
 func (a *AutoSelector) Unwrap(metadata *C.Metadata) C.Proxy {
 	return a
 }
@@ -254,7 +219,7 @@ func (a *AutoSelector) Unwrap(metadata *C.Metadata) C.Proxy {
 // MarshalJSON implements C.ProxyAdapter
 func (a *AutoSelector) MarshalJSON() ([]byte, error) {
 	var all []string
-	for _, proxy := range a.proxies(false) {
+	for _, proxy := range getProvidersProxies(a.providers, false) {
 		all = append(all, proxy.Name())
 	}
 	return json.Marshal(map[string]any{
@@ -272,12 +237,27 @@ func NewAutoSelector(option *GroupCommonOption, providers []provider.ProxyProvid
 			Interface:   option.Interface,
 			RoutingMark: option.RoutingMark,
 		}),
-		providers: providers,
-		single:    singledo.NewSingle(defaultGetProxiesDuration),
+		providers:     providers,
+		single:        singledo.NewSingle(defaultGetProxiesDuration),
+		blockTime:     option.BlockTime,
+		failedTimeout: option.FailedTimeout,
+	}
+	if as.blockTime <= 0 {
+		as.blockTime = defaultBlockTime
+	}
+	if as.failedTimeout <= 0 {
+		as.failedTimeout = defaultFailedTimeout
 	}
 
 	return as
-	// wrapper := &AutoSelector{as}
-	// runtime.SetFinalizer(wrapper, stopAutoSelector)
-	// return wrapper
+}
+
+type dialResult struct {
+	conn C.Conn
+	err  error
+}
+
+type listenPacketRes struct {
+	conn C.PacketConn
+	err  error
 }
