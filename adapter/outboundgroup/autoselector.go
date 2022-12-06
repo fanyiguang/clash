@@ -185,23 +185,29 @@ func (a *AutoSelector) Now() string {
 
 func (a *AutoSelector) FindCandidatesProxy() []C.Proxy {
 	elem, _, _ := a.single.Do(func() (any, error) {
-		all := getProvidersProxies(a.providers, true)
-		result := make([]C.Proxy, 0, len(all))
+		var (
+			all       = getProvidersProxies(a.providers, true)
+			result    = make([]C.Proxy, 0, len(all))
+			hasFailed []C.Proxy
+		)
 
 		// 被关小黑屋的时间只要在此之前就放出来
 		allowedLastFailedTime := time.Now().Add(-a.blockTime)
 		for _, proxy := range all {
-			// 短期内失败过,被关进小黑屋
-			if block, exist := a.failedProxies.Load(proxy.Name()); exist {
-				// 刑期到了,放出
-				if block.(time.Time).Before(allowedLastFailedTime) {
-					result = append(result, proxy)
-					a.failedProxies.Delete(proxy.Name())
+			proxy := proxy
+			if blockTime, ok := a.failedProxies.Load(proxy.Name()); ok {
+				// 出狱的放入hasFailed
+				if blockTime.(time.Time).Before(allowedLastFailedTime) {
+					hasFailed = append(hasFailed, proxy)
 				}
+				// 不能出狱,跳过
 				continue
 			}
+			// 没进过小黑屋,加入结果集
 			result = append(result, proxy)
 		}
+		// 出狱的append在没进过小黑屋的后方
+		result = append(result, hasFailed...)
 		// 没有结果,返回全部
 		if len(result) == 0 {
 			result = all
@@ -238,7 +244,7 @@ func NewAutoSelector(option *GroupCommonOption, providers []provider.ProxyProvid
 			RoutingMark: option.RoutingMark,
 		}),
 		providers:     providers,
-		single:        singledo.NewSingle(defaultGetProxiesDuration),
+		single:        singledo.NewSingle(time.Second * 10),
 		blockTime:     option.BlockTime,
 		failedTimeout: option.FailedTimeout,
 	}
