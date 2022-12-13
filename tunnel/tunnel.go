@@ -269,7 +269,26 @@ func handleUDPConn(packet *defaultinbound.PacketAdapter) {
 			} else {
 				log.Warnln("[UDP] dial %s (match %s/%s) %s --> %s error: %s", proxy.Name(), rule.RuleType().String(), rule.Payload(), metadata.SourceAddress(), metadata.RemoteAddress(), err.Error())
 			}
-			return
+			if !LocalDNS.Load() {
+				return
+			}
+			rCtx, rCancel := context.WithTimeout(context.Background(), C.DefaultTCPTimeout)
+			defer rCancel()
+			rawPc, err = proxy.ListenPacketContext(rCtx, localDNSMetadata(metadata))
+			if err != nil {
+				if rule == nil {
+					log.Warnln(
+						"[UDP] dial %s %s --> %s error: %s",
+						proxy.Name(),
+						metadata.SourceAddress(),
+						metadata.RemoteAddress(),
+						err.Error(),
+					)
+				} else {
+					log.Warnln("[UDP] dial %s (match %s/%s) %s --> %s error: %s", proxy.Name(), rule.RuleType().String(), rule.Payload(), metadata.SourceAddress(), metadata.RemoteAddress(), err.Error())
+				}
+				return
+			}
 		}
 		pCtx.InjectPacketConn(rawPc)
 		pc := statistic.NewUDPTracker(rawPc, statistic.DefaultManager, metadata, rule)
@@ -340,7 +359,26 @@ func handleTCPConn(connCtx C.ConnContext) {
 		} else {
 			log.Warnln("[TCP] dial %s (match %s/%s) %s --> %s error: %s", proxy.Name(), rule.RuleType().String(), rule.Payload(), metadata.SourceAddress(), metadata.RemoteAddress(), err.Error())
 		}
-		return
+		if !LocalDNS.Load() {
+			return
+		}
+		rCtx, rCancel := context.WithTimeout(context.Background(), C.DefaultTCPTimeout)
+		defer rCancel()
+		remoteConn, err = proxy.DialContext(rCtx, localDNSMetadata(metadata))
+		if err != nil {
+			if rule == nil {
+				log.Warnln(
+					"[TCP] dial %s %s --> %s error: %s",
+					proxy.Name(),
+					metadata.SourceAddress(),
+					metadata.RemoteAddress(),
+					err.Error(),
+				)
+			} else {
+				log.Warnln("[TCP] dial %s (match %s/%s) %s --> %s error: %s", proxy.Name(), rule.RuleType().String(), rule.Payload(), metadata.SourceAddress(), metadata.RemoteAddress(), err.Error())
+			}
+			return
+		}
 	}
 	remoteConn = statistic.NewTCPTracker(remoteConn, statistic.DefaultManager, metadata, rule)
 	defer remoteConn.Close()
@@ -384,18 +422,6 @@ func match(metadata *C.Metadata) (C.Proxy, C.Rule, error) {
 	if node := resolver.DefaultHosts.Search(metadata.Host); node != nil {
 		ip := node.Data.(net.IP)
 		metadata.DstIP = ip
-		resolved = true
-	}
-
-	if LocalDNS.Load() && metadata.Host != "" && metadata.DstIP == nil {
-		ip, err := resolver.ResolveIP(metadata.Host)
-		if err != nil {
-			log.Debugln("[DNS] resolve %s error: %s", metadata.Host, err.Error())
-		} else {
-			log.Debugln("[DNS] %s --> %s", metadata.Host, ip.String())
-			metadata.DstIP = ip
-			metadata.Host = ip.String()
-		}
 		resolved = true
 	}
 
@@ -561,4 +587,16 @@ func UpdateOutboundGroup(param outboundgroup.GroupCommonOption) error {
 	proxies[param.Name] = adapter.NewProxy(group)
 	ReNewGlobalOutbound()
 	return nil
+}
+
+func localDNSMetadata(metadata *C.Metadata) *C.Metadata {
+	ip, err := resolver.ResolveIP(metadata.Host)
+	if err != nil {
+		log.Debugln("[DNS] resolve %s error: %s", metadata.Host, err.Error())
+	} else {
+		log.Debugln("[DNS] %s --> %s", metadata.Host, ip.String())
+		metadata.DstIP = ip
+		metadata.Host = ip.String()
+	}
+	return metadata
 }
