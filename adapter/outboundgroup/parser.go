@@ -21,18 +21,17 @@ var (
 
 type GroupCommonOption struct {
 	outbound.BasicOption
-	Name          string        `json:"name" yaml:"name"`
-	Type          string        `json:"type" yaml:"type"`
-	Proxies       []string      `json:"proxies,omitempty" yaml:"proxies,omitempty"`
-	Use           []string      `json:"use,omitempty" yaml:"use,omitempty"`
-	URL           string        `json:"url,omitempty" yaml:"url,omitempty"`
-	Interval      int           `json:"interval,omitempty" yaml:"interval,omitempty"`
-	Lazy          bool          `json:"lazy,omitempty" default:"true" yaml:"lazy,omitempty"`
-	DisableUDP    bool          `json:"disable-udp,omitempty" yaml:"disable-udp,omitempty"`
-	Tolerance     int           `json:"tolerance,omitempty" yaml:"tolerance,omitempty"`
-	Strategy      string        `json:"strategy,omitempty" yaml:"strategy,omitempty"`
-	FailedTimeout time.Duration `json:"failed_timeout,omitempty" yaml:"failed_timeout,omitempty"` // autoSelector组中每个代理dial的超时时间
-	BlockTime     time.Duration `json:"block_time,omitempty" yaml:"block_time,omitempty"`         // autoSelector组中每个代理dial失败后被挂起的时间
+	Name       string        `json:"name" yaml:"name"`
+	Type       string        `json:"type" yaml:"type"`
+	Proxies    []string      `json:"proxies,omitempty" yaml:"proxies,omitempty"`
+	Use        []string      `json:"use,omitempty" yaml:"use,omitempty"`
+	URL        string        `json:"url,omitempty" yaml:"url,omitempty"`
+	Interval   int           `json:"interval,omitempty" yaml:"interval,omitempty"`
+	Lazy       bool          `json:"lazy,omitempty" default:"true" yaml:"lazy,omitempty"`
+	DisableUDP bool          `json:"disable-udp,omitempty" yaml:"disable-udp,omitempty"`
+	Tolerance  int           `json:"tolerance,omitempty" yaml:"tolerance,omitempty"`
+	Strategy   string        `json:"strategy,omitempty" yaml:"strategy,omitempty"`
+	BlockTime  time.Duration `json:"block_time,omitempty" yaml:"block_time,omitempty"` // autoSelector组中每个代理dial失败后被挂起的时间
 }
 
 func ParseProxyGroup(config GroupCommonOption, proxyMap map[string]C.Proxy, providersMap map[string]types.ProxyProvider) (C.ProxyAdapter, error) {

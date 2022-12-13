@@ -12,11 +12,11 @@ import (
 	"github.com/Dreamacro/clash/component/dialer"
 	C "github.com/Dreamacro/clash/constant"
 	"github.com/Dreamacro/clash/constant/provider"
+	"github.com/Dreamacro/clash/log"
 )
 
 var (
-	defaultFailedTimeout = time.Second * 3
-	defaultBlockTime     = time.Minute
+	defaultBlockTime = time.Minute
 )
 
 type AutoSelector struct {
@@ -27,8 +27,6 @@ type AutoSelector struct {
 	// failedProxies 存储所有近期失败过的代理，当所有代理近期都失败过时，逐一尝试所有代理
 	failedProxies sync.Map
 
-	// failedTimeout 代理失败后重新尝试的时间间隔
-	failedTimeout time.Duration
 	// blockTime 代理失败后被关小黑屋的时长
 	blockTime time.Duration
 }
@@ -76,17 +74,26 @@ func (a *AutoSelector) DialContext(ctx context.Context, metadata *C.Metadata, op
 	if len(proxies) == 0 {
 		return nil, errors.New("no available proxies")
 	}
-
-	for _, proxy := range proxies {
+	length := len(proxies)
+	for i, proxy := range proxies {
 		ch := make(chan dialResult, 1)
-		dialCtx, cancel := context.WithTimeout(ctx, a.failedTimeout)
+		dialCtx, cancel := context.WithTimeout(ctx, stepWiseTimeout(i, length))
 		// defer cancel()
 		go func() {
-			defer cancel()
+			defer func() {
+				cancel()
+				close(ch)
+			}()
 			var r dialResult
 			r.conn, r.err = proxy.DialContext(dialCtx, metadata, a.Base.DialOptions(opts...)...)
-			ch <- r
-			close(ch)
+			select {
+			case <-ctx.Done():
+				if r.conn != nil {
+					r.conn.Close()
+				}
+			default:
+				ch <- r
+			}
 		}()
 
 		select {
@@ -97,6 +104,7 @@ func (a *AutoSelector) DialContext(ctx context.Context, metadata *C.Metadata, op
 			a.failedProxies.Store(proxy.Name(), time.Now())
 			// 出现新的关小黑屋,需要重置FindCandidatesProxy
 			a.single.Reset()
+			log.Infoln("autoSelector '%s' DialContext failed. try next: %v", proxy.Name(), r.err)
 		case <-dialCtx.Done():
 			continue
 		}
@@ -111,19 +119,28 @@ func (a *AutoSelector) ListenPacketContext(ctx context.Context, metadata *C.Meta
 	if len(proxies) == 0 {
 		return nil, errors.New("no available proxies")
 	}
-
-	for _, proxy := range proxies {
+	length := len(proxies)
+	for i, proxy := range proxies {
 		if proxy.SupportUDP() {
 			ch := make(chan listenPacketRes, 1)
-			dialCtx, cancel := context.WithTimeout(ctx, a.failedTimeout)
+			dialCtx, cancel := context.WithTimeout(ctx, stepWiseTimeout(i, length))
 			go func() {
-				defer cancel()
+				defer func() {
+					cancel()
+					close(ch)
+				}()
 				pc, err := proxy.ListenPacketContext(dialCtx, metadata, a.Base.DialOptions(opts...)...)
-				ch <- listenPacketRes{
-					conn: pc,
-					err:  err,
+				select {
+				case <-ctx.Done():
+					if pc != nil {
+						pc.Close()
+					}
+				default:
+					ch <- listenPacketRes{
+						conn: pc,
+						err:  err,
+					}
 				}
-				close(ch)
 			}()
 			select {
 			case r := <-ch:
@@ -132,6 +149,7 @@ func (a *AutoSelector) ListenPacketContext(ctx context.Context, metadata *C.Meta
 				}
 				a.failedProxies.Store(proxy.Name(), time.Now())
 				a.single.Reset()
+				log.Infoln("autoSelector '%s' ListenPacketContext failed. try next: %v", proxy.Name(), r.err)
 			case <-dialCtx.Done():
 			}
 		}
@@ -243,16 +261,12 @@ func NewAutoSelector(option *GroupCommonOption, providers []provider.ProxyProvid
 			Interface:   option.Interface,
 			RoutingMark: option.RoutingMark,
 		}),
-		providers:     providers,
-		single:        singledo.NewSingle(time.Second * 10),
-		blockTime:     option.BlockTime,
-		failedTimeout: option.FailedTimeout,
+		providers: providers,
+		single:    singledo.NewSingle(time.Second * 10),
+		blockTime: option.BlockTime,
 	}
 	if as.blockTime <= 0 {
 		as.blockTime = defaultBlockTime
-	}
-	if as.failedTimeout <= 0 {
-		as.failedTimeout = defaultFailedTimeout
 	}
 
 	return as
@@ -266,4 +280,18 @@ type dialResult struct {
 type listenPacketRes struct {
 	conn C.PacketConn
 	err  error
+}
+
+func stepWiseTimeout(i int, length int) time.Duration {
+	if length == 1 {
+		return time.Second * 5
+	}
+	switch i {
+	case 0:
+		return time.Second * 3
+	case 1:
+		return time.Second * 4
+	default:
+		return time.Second * 5
+	}
 }
