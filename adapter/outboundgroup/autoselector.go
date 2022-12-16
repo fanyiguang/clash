@@ -17,6 +17,7 @@ import (
 
 var (
 	defaultBlockTime = time.Minute
+	defaultTimeout   = time.Second * 7
 )
 
 type AutoSelector struct {
@@ -74,10 +75,9 @@ func (a *AutoSelector) DialContext(ctx context.Context, metadata *C.Metadata, op
 	if len(proxies) == 0 {
 		return nil, errors.New("no available proxies")
 	}
-	length := len(proxies)
-	for i, proxy := range proxies {
+	for _, proxy := range proxies {
 		ch := make(chan dialResult, 1)
-		dialCtx, cancel := context.WithTimeout(ctx, stepWiseTimeout(i, length))
+		dialCtx, cancel := context.WithTimeout(ctx, defaultTimeout)
 		// defer cancel()
 		go func() {
 			defer func() {
@@ -119,11 +119,10 @@ func (a *AutoSelector) ListenPacketContext(ctx context.Context, metadata *C.Meta
 	if len(proxies) == 0 {
 		return nil, errors.New("no available proxies")
 	}
-	length := len(proxies)
-	for i, proxy := range proxies {
+	for _, proxy := range proxies {
 		if proxy.SupportUDP() {
 			ch := make(chan listenPacketRes, 1)
-			dialCtx, cancel := context.WithTimeout(ctx, stepWiseTimeout(i, length))
+			dialCtx, cancel := context.WithTimeout(ctx, defaultTimeout)
 			go func() {
 				defer func() {
 					cancel()
@@ -280,18 +279,4 @@ type dialResult struct {
 type listenPacketRes struct {
 	conn C.PacketConn
 	err  error
-}
-
-func stepWiseTimeout(i int, length int) time.Duration {
-	if length == 1 {
-		return time.Second * 5
-	}
-	switch i {
-	case 0:
-		return time.Second * 3
-	case 1:
-		return time.Second * 4
-	default:
-		return time.Second * 5
-	}
 }
