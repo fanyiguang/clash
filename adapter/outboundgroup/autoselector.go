@@ -157,6 +157,7 @@ func (a *AutoSelector) ListenPacketContext(ctx context.Context, metadata *C.Meta
 	return nil, errors.New("no available proxies")
 }
 
+// Deprecated: use DialContext instead.
 func (a *AutoSelector) Dial(metadata *C.Metadata) (C.Conn, error) {
 	proxies := a.FindCandidatesProxy()
 	if len(proxies) == 0 {
@@ -174,6 +175,7 @@ func (a *AutoSelector) Dial(metadata *C.Metadata) (C.Conn, error) {
 	return nil, errors.New("no available proxies")
 }
 
+// Deprecated: use DialPacketConn instead.
 func (a *AutoSelector) DialUDP(metadata *C.Metadata) (C.PacketConn, error) {
 	proxies := a.FindCandidatesProxy()
 	if len(proxies) == 0 {
