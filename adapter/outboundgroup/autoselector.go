@@ -131,7 +131,7 @@ func (a *AutoSelector) ListenPacketContext(ctx context.Context, metadata *C.Meta
 				}()
 				pc, err := proxy.ListenPacketContext(dialCtx, metadata, a.Base.DialOptions(opts...)...)
 				select {
-				case <-ctx.Done():
+				case <-dialCtx.Done():
 					if pc != nil {
 						pc.Close()
 					}
