@@ -77,7 +77,7 @@ func (a *AutoSelector) DialContext(ctx context.Context, metadata *C.Metadata, op
 	}
 	for _, proxy := range proxies {
 		ch := make(chan dialResult, 1)
-		dialCtx, cancel := context.WithTimeout(ctx, defaultTimeout)
+		dialCtx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 		// defer cancel()
 		go func() {
 			defer func() {
@@ -87,7 +87,7 @@ func (a *AutoSelector) DialContext(ctx context.Context, metadata *C.Metadata, op
 			var r dialResult
 			r.conn, r.err = proxy.DialContext(dialCtx, metadata, a.Base.DialOptions(opts...)...)
 			select {
-			case <-ctx.Done():
+			case <-dialCtx.Done():
 				if r.conn != nil {
 					r.conn.Close()
 				}
@@ -96,18 +96,19 @@ func (a *AutoSelector) DialContext(ctx context.Context, metadata *C.Metadata, op
 			}
 		}()
 
+		var err error
 		select {
 		case r := <-ch:
-			if r.err == nil {
+			if err = r.err; err == nil {
 				return r.conn, nil
 			}
-			a.failedProxies.Store(proxy.Name(), time.Now())
-			// 出现新的关小黑屋,需要重置FindCandidatesProxy
-			a.single.Reset()
-			log.Infoln("autoSelector '%s' DialContext failed. try next: %v", proxy.Name(), r.err)
 		case <-dialCtx.Done():
-			continue
+			err = dialCtx.Err()
 		}
+		a.failedProxies.Store(proxy.Name(), time.Now())
+		// 出现新的关小黑屋,需要重置FindCandidatesProxy
+		a.single.Reset()
+		log.Infoln("autoSelector '%s' DialContext failed. try next: %v", proxy.Name(), err)
 	}
 
 	return nil, errors.New("no available proxies")
@@ -122,7 +123,7 @@ func (a *AutoSelector) ListenPacketContext(ctx context.Context, metadata *C.Meta
 	for _, proxy := range proxies {
 		if proxy.SupportUDP() {
 			ch := make(chan listenPacketRes, 1)
-			dialCtx, cancel := context.WithTimeout(ctx, defaultTimeout)
+			dialCtx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 			go func() {
 				defer func() {
 					cancel()
@@ -141,16 +142,18 @@ func (a *AutoSelector) ListenPacketContext(ctx context.Context, metadata *C.Meta
 					}
 				}
 			}()
+			var err error
 			select {
 			case r := <-ch:
-				if r.err == nil {
+				if err = r.err; err == nil {
 					return r.conn, nil
 				}
-				a.failedProxies.Store(proxy.Name(), time.Now())
-				a.single.Reset()
-				log.Infoln("autoSelector '%s' ListenPacketContext failed. try next: %v", proxy.Name(), r.err)
 			case <-dialCtx.Done():
+				err = dialCtx.Err()
 			}
+			a.failedProxies.Store(proxy.Name(), time.Now())
+			a.single.Reset()
+			log.Infoln("autoSelector '%s' ListenPacketContext failed. try next: %v", proxy.Name(), err)
 		}
 	}
 
