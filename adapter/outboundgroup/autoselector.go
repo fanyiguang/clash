@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"sort"
 	"sync"
 	"time"
 
@@ -208,9 +209,9 @@ func (a *AutoSelector) Now() string {
 func (a *AutoSelector) FindCandidatesProxy() []C.Proxy {
 	elem, _, _ := a.single.Do(func() (any, error) {
 		var (
-			all       = getProvidersProxies(a.providers, true)
-			result    = make([]C.Proxy, 0, len(all))
-			hasFailed []C.Proxy
+			all          = getProvidersProxies(a.providers, true)
+			result       = make([]C.Proxy, 0, len(all))
+			releaseCount = 0
 		)
 
 		// 被关小黑屋的时间只要在此之前就放出来
@@ -218,21 +219,37 @@ func (a *AutoSelector) FindCandidatesProxy() []C.Proxy {
 		for _, proxy := range all {
 			proxy := proxy
 			if blockTime, ok := a.failedProxies.Load(proxy.Name()); ok {
-				// 出狱的放入hasFailed
-				if blockTime.(time.Time).Before(allowedLastFailedTime) {
-					hasFailed = append(hasFailed, proxy)
+				// 未到出狱时间
+				if blockTime.(time.Time).After(allowedLastFailedTime) {
+					continue
 				}
-				// 不能出狱,跳过
-				continue
+				// 出狱
+				releaseCount++
 			}
 			// 没进过小黑屋,加入结果集
 			result = append(result, proxy)
 		}
-		// 出狱的append在没进过小黑屋的后方
-		result = append(result, hasFailed...)
+
 		// 没有结果,返回全部
 		if len(result) == 0 {
 			result = all
+			releaseCount = len(result)
+		}
+		if releaseCount > 0 && len(result) > 1 {
+			sort.Slice(result, func(i, j int) bool {
+				// 默认顺序下 前置位没被关过 => 保持顺序
+				iBlockTime, iOk := a.failedProxies.Load(result[i].Name())
+				if !iOk {
+					return true
+				}
+				// 默认顺序下 前置位被关过 && 后置位没被关过 => 交换位置
+				jBlockTime, jOk := a.failedProxies.Load(result[j].Name())
+				if !jOk {
+					return false
+				}
+				// 默认顺序下 都被关过 => 关禁闭时间早的在前
+				return iBlockTime.(time.Time).Before(jBlockTime.(time.Time))
+			})
 		}
 		return result, nil
 	})
