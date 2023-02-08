@@ -9,74 +9,39 @@ inbounds:
   - name: main-in
     type: socks
     listen: 127.0.0.1
-    port: 1111
-#    users:
-#      - username: admin
-#        password: admin
-
-  - name: v2ray-in
-    type: http
-    listen: 127.0.0.1
-    port: 2222
-    users:
-      - username: admin
-        password: admin
-
-  - name: forward-server
-    type: direct
-    listen: 127.0.0.1
-    port: 3333
-    redirect-addr: 185.199.110.153:80
+    port: 1111  
 
 proxies:
-  - name: "luminati-一个很长的名字-123456789012345678901234567890"
-    type: http
-    server: zproxy.lum-superproxy.io
-    port: 22225
-    username: lum-customer-hl_29e0ce58-zone-data_center
-    password: 6odvixy79hv7
-    proxy-mode: auto
+  - name: "socks1"
+    type: socks5
+    server: 127.0.0.1
+    port: 7777  
 
-  - name: "http1"
+  - name: "socks2"
+    type: socks5
+    server: 127.0.0.1
+    port: 7778
+  
+
+  - name: "ssh1"
     type: ssh
     server: 127.0.0.1
-    port: 9111
+    port: 7779
 
-  - name: "http2"
-    type: http
-    server: 127.0.0.1
-    port: 9222
-    username: "222"
-    password: "222"
-  - name: "luminati-一个很长的名字-123456789012345678901234567890luminati-一个很长的名字-123456789012345678901234567890"
-    type: http
-    server: zproxy.lum-superproxy.io
-    port: 22225
-    username: lum-customer-hl_29e0ce58-zone-data_center
-    password: 6odvixy79hv7
-    proxy-mode: auto
-
-  - name: "v2ray-out"
+  - name: "ssh2"
     type: ssh
     server: 127.0.0.1
-    port: 9111
-
-  - name: "gost-1"
-    type: ssh
-    server: 127.0.0.1
-    port: 9111
+    port: 7800  
 
 proxy-groups:
 
-  - name: gost-proxy-chain
+  - name: relay
     type: relay
     proxies:
-      - http1
-      - http2
+      # - socks1
+      - ssh1
+      - ssh2
+      - socks2
 
-rules:
-  - Inbound,main-in,v2ray-out
-  - Inbound,v2ray-in,gost-proxy-chain
-  - Inbound,forward-server,gost-1
-  - MATCH,v2ray-out
-  - MATCH,http2
+rules: 
+  - MATCH,relay
