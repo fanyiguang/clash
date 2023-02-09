@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/netip"
 	"runtime"
@@ -541,6 +542,11 @@ func DeleteOutbounds(params []string) {
 	for _, param := range params {
 		if param == "DIRECT" || param == "REJECT" {
 			log.Errorln("can not delete %s", param)
+		}
+		if proxy := proxies[param]; proxy != nil {
+			if closer, ok := proxy.(io.Closer); ok {
+				closer.Close()
+			}
 		}
 		delete(proxies, param)
 	}
