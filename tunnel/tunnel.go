@@ -47,7 +47,11 @@ var (
 	// default timeout for UDP session
 	udpTimeout = 60 * time.Second
 
-	LocalDNS *atomic.Bool = atomic.NewBool(false)
+	LocalDNSRetry *atomic.Bool = atomic.NewBool(false) // 本地DNS重试开关
+
+	LocalDNS *atomic.Bool = atomic.NewBool(false) // 本地DNS开关
+
+	LocalDNSDomainMapping sync.Map // 需要本地DNS的特定域名集合
 )
 
 func init() {
@@ -257,6 +261,9 @@ func handleUDPConn(packet *defaultinbound.PacketAdapter) {
 
 		ctx, cancel := context.WithTimeout(context.Background(), C.DefaultUDPTimeout)
 		defer cancel()
+
+		localDNS(metadata)
+
 		rawPc, err := proxy.ListenPacketContext(ctx, metadata.Pure())
 		if err != nil {
 			if rule == nil {
@@ -270,7 +277,7 @@ func handleUDPConn(packet *defaultinbound.PacketAdapter) {
 			} else {
 				log.Warnln("[UDP] dial %s (match %s/%s) %s --> %s error: %s", proxy.Name(), rule.RuleType().String(), rule.Payload(), metadata.SourceAddress(), metadata.RemoteAddress(), err.Error())
 			}
-			if !LocalDNS.Load() {
+			if !LocalDNSRetry.Load() || LocalDNS.Load() {
 				return
 			}
 			rCtx, rCancel := context.WithTimeout(context.Background(), C.DefaultTCPTimeout)
@@ -325,6 +332,20 @@ func handleUDPConn(packet *defaultinbound.PacketAdapter) {
 	}()
 }
 
+func localDNS(metadata *C.Metadata) {
+	if load, ok := LocalDNSDomainMapping.Load(metadata.Host); ok {
+		if host, okk := load.(string); okk {
+			metadata.Host = host
+			metadata = localDNSMetadata(metadata)
+			return
+		}
+	}
+
+	if LocalDNS.Load() {
+		metadata = localDNSMetadata(metadata)
+	}
+}
+
 func handleTCPConn(connCtx C.ConnContext) {
 	defer connCtx.Conn().Close()
 
@@ -347,6 +368,9 @@ func handleTCPConn(connCtx C.ConnContext) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), C.DefaultTCPTimeout)
 	defer cancel()
+
+	localDNS(metadata)
+
 	remoteConn, err := proxy.DialContext(ctx, metadata.Pure())
 	if err != nil {
 		if rule == nil {
@@ -360,7 +384,7 @@ func handleTCPConn(connCtx C.ConnContext) {
 		} else {
 			log.Warnln("[TCP] dial %s (match %s/%s) %s --> %s error: %s", proxy.Name(), rule.RuleType().String(), rule.Payload(), metadata.SourceAddress(), metadata.RemoteAddress(), err.Error())
 		}
-		if !LocalDNS.Load() {
+		if !LocalDNSRetry.Load() || LocalDNS.Load() {
 			return
 		}
 		rCtx, rCancel := context.WithTimeout(context.Background(), C.DefaultTCPTimeout)

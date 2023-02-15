@@ -4,11 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net"
-	"net/url"
-	"os"
-	"strings"
-
 	"github.com/Dreamacro/clash/adapter"
 	"github.com/Dreamacro/clash/adapter/inbound"
 	"github.com/Dreamacro/clash/adapter/outbound"
@@ -23,6 +18,10 @@ import (
 	"github.com/Dreamacro/clash/log"
 	R "github.com/Dreamacro/clash/rule"
 	T "github.com/Dreamacro/clash/tunnel"
+	"net"
+	"net/url"
+	"os"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -493,6 +492,15 @@ func parseNameServer(servers []string) ([]dns.NameServer, error) {
 	var nameservers []dns.NameServer
 
 	for idx, server := range servers {
+		if server == "local" {
+			nameservers = append(
+				nameservers,
+				dns.NameServer{
+					Net: "local",
+				},
+			)
+			continue
+		}
 		// parse without scheme .e.g 8.8.8.8:53
 		if !strings.Contains(server, "://") {
 			server = "udp://" + server

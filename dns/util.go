@@ -60,6 +60,9 @@ func transform(servers []NameServer, resolver *Resolver) []dnsClient {
 		case "dhcp":
 			ret = append(ret, newDHCPClient(s.Addr))
 			continue
+		case "local":
+			ret = append(ret, newLocal())
+			continue
 		}
 
 		host, port, _ := net.SplitHostPort(s.Addr)
