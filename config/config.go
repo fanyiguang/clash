@@ -116,6 +116,10 @@ type RawDNS struct {
 	FakeIPFilter      []string          `yaml:"fake-ip-filter"`
 	DefaultNameserver []string          `yaml:"default-nameserver"`
 	NameServerPolicy  map[string]string `yaml:"nameserver-policy"`
+
+	// 兼容controller初始化添加的字段
+	Hosts       map[string]string `yaml:"hosts"`
+	StoreFakeIP bool              `yaml:"store-fake-ip"`
 }
 
 type RawFallbackFilter struct {
@@ -471,6 +475,27 @@ func parseHosts(cfg *RawConfig) (*trie.DomainTrie, error) {
 	return tree, nil
 }
 
+func parseHostsByMap(hosts map[string]string) (*trie.DomainTrie, error) {
+	tree := trie.New()
+
+	// add default hosts
+	if err := tree.Insert("localhost", net.IP{127, 0, 0, 1}); err != nil {
+		log.Errorln("insert localhost to host error: %s", err.Error())
+	}
+
+	if len(hosts) != 0 {
+		for domain, ipStr := range hosts {
+			ip := net.ParseIP(ipStr)
+			if ip == nil {
+				return nil, fmt.Errorf("%s is not a valid IP", ipStr)
+			}
+			tree.Insert(domain, ip)
+		}
+	}
+
+	return tree, nil
+}
+
 func hostWithDefaultPort(host string, defPort string) (string, error) {
 	if !strings.Contains(host, ":") {
 		host += ":"
@@ -662,6 +687,92 @@ func parseDNS(rawCfg *RawConfig, hosts *trie.DomainTrie) (*DNS, error) {
 
 	if cfg.UseHosts {
 		dnsCfg.Hosts = hosts
+	}
+
+	return dnsCfg, nil
+}
+
+func ParseDNSByRawDNS(cfg RawDNS) (*DNS, error) {
+	if cfg.Enable && len(cfg.NameServer) == 0 {
+		return nil, fmt.Errorf("if DNS configuration is turned on, NameServer cannot be empty")
+	}
+
+	dnsCfg := &DNS{
+		Enable:       cfg.Enable,
+		Listen:       cfg.Listen,
+		IPv6:         cfg.IPv6,
+		EnhancedMode: cfg.EnhancedMode,
+		FallbackFilter: FallbackFilter{
+			IPCIDR: []*net.IPNet{},
+		},
+	}
+	var err error
+	if dnsCfg.NameServer, err = parseNameServer(cfg.NameServer); err != nil {
+		return nil, err
+	}
+
+	if dnsCfg.Fallback, err = parseNameServer(cfg.Fallback); err != nil {
+		return nil, err
+	}
+
+	if dnsCfg.NameServerPolicy, err = parseNameServerPolicy(cfg.NameServerPolicy); err != nil {
+		return nil, err
+	}
+
+	if len(cfg.DefaultNameserver) == 0 {
+		return nil, errors.New("default nameserver should have at least one nameserver")
+	}
+	if dnsCfg.DefaultNameserver, err = parseNameServer(cfg.DefaultNameserver); err != nil {
+		return nil, err
+	}
+	// check default nameserver is pure ip addr
+	for _, ns := range dnsCfg.DefaultNameserver {
+		host, _, err := net.SplitHostPort(ns.Addr)
+		if err != nil || net.ParseIP(host) == nil {
+			return nil, errors.New("default nameserver should be pure IP")
+		}
+	}
+
+	if cfg.EnhancedMode == C.DNSFakeIP {
+		_, ipnet, err := net.ParseCIDR(cfg.FakeIPRange)
+		if err != nil {
+			return nil, err
+		}
+
+		var host *trie.DomainTrie
+		// fake ip skip host filter
+		if len(cfg.FakeIPFilter) != 0 {
+			host = trie.New()
+			for _, domain := range cfg.FakeIPFilter {
+				host.Insert(domain, true)
+			}
+		}
+
+		pool, err := fakeip.New(fakeip.Options{
+			IPNet:       ipnet,
+			Size:        1000,
+			Host:        host,
+			Persistence: cfg.StoreFakeIP,
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		dnsCfg.FakeIPRange = pool
+	}
+
+	dnsCfg.FallbackFilter.GeoIP = cfg.FallbackFilter.GeoIP
+	dnsCfg.FallbackFilter.GeoIPCode = cfg.FallbackFilter.GeoIPCode
+	if fallbackip, err := parseFallbackIPCIDR(cfg.FallbackFilter.IPCIDR); err == nil {
+		dnsCfg.FallbackFilter.IPCIDR = fallbackip
+	}
+	dnsCfg.FallbackFilter.Domain = cfg.FallbackFilter.Domain
+
+	if cfg.UseHosts {
+		hosts, err := parseHostsByMap(cfg.Hosts)
+		if err == nil {
+			dnsCfg.Hosts = hosts
+		}
 	}
 
 	return dnsCfg, nil

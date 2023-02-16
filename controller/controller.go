@@ -5,6 +5,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"github.com/Dreamacro/clash/hub/executor"
 	"io"
 	"time"
 
@@ -84,6 +85,16 @@ func UpdateRules(params []config.RuleConfig) error {
 		return err
 	}
 	T.UpdateRules(rules)
+	return nil
+}
+
+// UpdateDNS 更新DNS (切记更新DNS只能在初始化的时候做，正式使用时禁止使用否在可能会崩溃)
+func UpdateDNS(params config.RawDNS) error {
+	DNS, err := config.ParseDNSByRawDNS(params)
+	if err != nil {
+		return err
+	}
+	executor.UpdateDNS(DNS)
 	return nil
 }
 
