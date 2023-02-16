@@ -73,7 +73,7 @@ func ApplyConfig(cfg *config.Config, force bool) {
 	updateHosts(cfg.Hosts)
 	updateProfile(cfg)
 	updateGeneral(cfg.General, force)
-	UpdateDNS(cfg.DNS)
+	updateDNS(cfg.DNS)
 	updateExperimental(cfg)
 
 	SetOtherInbounds(cfg.Inbounds)
@@ -111,7 +111,7 @@ func GetGeneral() *config.General {
 
 func updateExperimental(c *config.Config) {}
 
-func UpdateDNS(c *config.DNS) {
+func updateDNS(c *config.DNS) {
 	if !c.Enable {
 		resolver.DefaultResolver = nil
 		resolver.DefaultHostMapper = nil

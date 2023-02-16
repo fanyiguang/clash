@@ -620,13 +620,15 @@ func UpdateOutboundGroup(param outboundgroup.GroupCommonOption) error {
 }
 
 func localDNSMetadata(metadata *C.Metadata) *C.Metadata {
-	ip, err := resolver.ResolveIP(metadata.Host)
-	if err != nil {
-		log.Debugln("[DNS] resolve %s error: %s", metadata.Host, err.Error())
-	} else {
-		log.Debugln("[DNS] %s --> %s", metadata.Host, ip.String())
-		metadata.DstIP = ip
-		metadata.Host = ip.String()
+	if metadata.Host != "" {
+		ip, err := resolver.ResolveIP(metadata.Host)
+		if err != nil {
+			log.Debugln("[DNS] resolve %s error: %s", metadata.Host, err.Error())
+		} else {
+			log.Debugln("[DNS] %s --> %s", metadata.Host, ip.String())
+			metadata.DstIP = ip
+			metadata.Host = ip.String()
+		}
 	}
 	return metadata
 }
