@@ -133,6 +133,16 @@ func (s *Ssh) rConnect(c net.Conn) (*ssh.Client, error) {
 	return s.rClient, nil
 }
 
+func (s *Ssh) Close() error {
+	s.rMu.Lock()
+	defer s.rMu.Unlock()
+	if s.rClient != nil {
+		log.Infoln("ssh closed - " + s.name)
+		return s.rClient.Close()
+	}
+	return nil
+}
+
 func NewSsh(option SshOption) (*Ssh, error) {
 	cfg := &ssh.ClientConfig{
 		User:            option.UserName,

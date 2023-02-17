@@ -107,7 +107,7 @@ func (r *Relay) dialWithSsh(ctx context.Context, metadata *C.Metadata, proxies [
 				}
 				continue
 			}
-			tmp = i
+			tmp = i + 1
 			break
 		}
 	}
