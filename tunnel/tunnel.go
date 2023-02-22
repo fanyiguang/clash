@@ -343,7 +343,7 @@ func localDNSStrategy(metadata *C.Metadata) {
 	//}
 
 	if LocalDNS.Load() {
-		metadata = localDNSMetadata(metadata)
+		localDNSMetadata(metadata)
 	}
 }
 
