@@ -262,7 +262,7 @@ func handleUDPConn(packet *defaultinbound.PacketAdapter) {
 		ctx, cancel := context.WithTimeout(context.Background(), C.DefaultUDPTimeout)
 		defer cancel()
 
-		localDNS(metadata)
+		localDNSStrategy(metadata)
 
 		rawPc, err := proxy.ListenPacketContext(ctx, metadata.Pure())
 		if err != nil {
@@ -332,14 +332,15 @@ func handleUDPConn(packet *defaultinbound.PacketAdapter) {
 	}()
 }
 
-func localDNS(metadata *C.Metadata) {
-	if load, ok := LocalDNSDomainMapping.Load(metadata.Host); ok {
-		if host, okk := load.(string); okk {
-			metadata.Host = host
-			metadata = localDNSMetadata(metadata)
-			return
-		}
-	}
+func localDNSStrategy(metadata *C.Metadata) {
+	// 上传业务改动不在需要此功能，因为会影响速度所以先注释
+	//if load, ok := LocalDNSDomainMapping.Load(metadata.Host); ok {
+	//	if host, okk := load.(string); okk {
+	//		metadata.Host = host
+	//		metadata = localDNSMetadata(metadata)
+	//		return
+	//	}
+	//}
 
 	if LocalDNS.Load() {
 		metadata = localDNSMetadata(metadata)
@@ -369,7 +370,7 @@ func handleTCPConn(connCtx C.ConnContext) {
 	ctx, cancel := context.WithTimeout(context.Background(), C.DefaultTCPTimeout)
 	defer cancel()
 
-	localDNS(metadata)
+	localDNSStrategy(metadata)
 
 	remoteConn, err := proxy.DialContext(ctx, metadata.Pure())
 	if err != nil {
