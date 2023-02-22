@@ -624,9 +624,9 @@ func localDNSMetadata(metadata *C.Metadata) *C.Metadata {
 	if metadata.Host != "" {
 		ip, err := resolver.ResolveIP(metadata.Host)
 		if err != nil {
-			log.Debugln("[DNS] resolve %s error: %s", metadata.Host, err.Error())
+			log.Warnln("[DNS] resolve %s error: %s", metadata.Host, err.Error())
 		} else {
-			log.Debugln("[DNS] %s --> %s", metadata.Host, ip.String())
+			log.Infoln("[DNS] %s --> %s", metadata.Host, ip.String())
 			metadata.DstIP = ip
 			metadata.Host = ip.String()
 		}
