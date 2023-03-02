@@ -569,8 +569,10 @@ func DeleteOutbounds(params []string) {
 			log.Errorln("can not delete %s", param)
 		}
 		if proxy := proxies[param]; proxy != nil {
-			if closer, ok := proxy.(io.Closer); ok {
-				closer.Close()
+			if adapterProxy, ok := proxy.(*adapter.Proxy); ok {
+				if closer, ok := adapterProxy.ProxyAdapter.(io.Closer); ok {
+					closer.Close()
+				}
 			}
 		}
 		delete(proxies, param)
