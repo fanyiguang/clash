@@ -36,7 +36,7 @@ func (n *Not) ShouldFindProcess() bool {
 }
 
 func NewNot(payload string, adapter string, params []string) (*Not, error) {
-	payloads := strings.SplitN(payload, ":", 1)
+	payloads := strings.SplitN(payload, ":", 2)
 	if len(payload) != 2 {
 		return nil, fmt.Errorf("invalid NOT rule payload: %s", payload)
 	}
