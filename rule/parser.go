@@ -43,6 +43,10 @@ func ParseRule(tp C.RuleType, payload, target string, params []string) (C.Rule, 
 		parsed, parseErr = NewAnd(payload, target)
 	case C.RuleTypeNot:
 		parsed, parseErr = NewNot(payload, target, params)
+	case C.RuleTypeNotProcesses:
+		parsed, parseErr = NewNotProcess(payload, target, true)
+	case C.RuleTypeNotProcessesPath:
+		parsed, parseErr = NewNotProcess(payload, target, false)
 	default:
 		parseErr = fmt.Errorf("unsupported rule type %s", tp)
 	}

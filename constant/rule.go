@@ -16,6 +16,8 @@ const (
 	RuleTypeInbound
 	RuleTypeAnd
 	RuleTypeNot
+	RuleTypeNotProcesses
+	RuleTypeNotProcessesPath
 )
 
 type RuleType int
@@ -50,6 +52,10 @@ func (rt RuleType) String() string {
 		return "AND"
 	case RuleTypeNot:
 		return "NOT"
+	case RuleTypeNotProcesses:
+		return "NOT-PROCESSES"
+	case RuleTypeNotProcessesPath:
+		return "NOT-PROCESSES-PATH"
 	default:
 		return "Unknown"
 	}
