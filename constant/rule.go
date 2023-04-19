@@ -15,6 +15,7 @@ const (
 	RuleTypeMATCH
 	RuleTypeInbound
 	RuleTypeAnd
+	RuleTypeNot
 )
 
 type RuleType int
@@ -47,6 +48,8 @@ func (rt RuleType) String() string {
 		return "INBOUND"
 	case RuleTypeAnd:
 		return "AND"
+	case RuleTypeNot:
+		return "NOT"
 	default:
 		return "Unknown"
 	}
